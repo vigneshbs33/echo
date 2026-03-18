@@ -226,18 +226,9 @@ private fun EchoBubble(
                 (fadeOut() + scaleOut())
         },
         label = "bubble_state",
-        modifier = Modifier.pointerInput(Unit) {
-            detectDragGestures(
-                onDragEnd = onDragEnd,
-                onDrag = { change, dragAmount ->
-                    change.consume()
-                    onDrag(dragAmount.x, dragAmount.y)
-                }
-            )
-        }
     ) { state ->
         when (state) {
-            is BubbleUiState.Idle -> IdleBubble(onTap = onBubbleTap)
+            is BubbleUiState.Idle -> IdleBubble(onTap = onBubbleTap, onDrag = onDrag, onDragEnd = onDragEnd)
             is BubbleUiState.Menu -> ToneMenu(onToneSelected = onToneSelected, onReplyFlowSelected = onReplyFlowSelected, onDismiss = onDismiss)
             is BubbleUiState.Loading -> LoadingBubble(onDismiss = onDismiss)
             is BubbleUiState.Done -> DoneBubble(preview = state.preview, onDismiss = onDismiss)
@@ -251,7 +242,7 @@ private fun EchoBubble(
 }
 
 @Composable
-private fun IdleBubble(onTap: () -> Unit) {
+private fun IdleBubble(onTap: () -> Unit, onDrag: (Float, Float) -> Unit, onDragEnd: () -> Unit) {
     Box(
         modifier = Modifier
             .size(56.dp)
@@ -262,7 +253,20 @@ private fun IdleBubble(onTap: () -> Unit) {
                 shape = CircleShape,
             )
             .clip(CircleShape)
-            .clickable(onClick = onTap),
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onTap = { onTap() }
+                )
+            }
+            .pointerInput(Unit) {
+                detectDragGestures(
+                    onDragEnd = onDragEnd,
+                    onDrag = { change, dragAmount ->
+                        change.consume()
+                        onDrag(dragAmount.x, dragAmount.y)
+                    }
+                )
+            },
         contentAlignment = Alignment.Center,
     ) {
         Image(

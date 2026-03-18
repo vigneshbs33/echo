@@ -36,9 +36,13 @@ class OnboardingViewModel(
     val state: StateFlow<OnboardingState> = _state.asStateFlow()
 
     init {
-        val savedKey = apiKeyStorage.get()
-        if (!savedKey.isNullOrBlank()) {
-            _state.update { it.copy(apiKey = savedKey, apiKeySaved = true) }
+        try {
+            val savedKey = apiKeyStorage.get()
+            if (!savedKey.isNullOrBlank()) {
+                _state.update { it.copy(apiKey = savedKey, apiKeySaved = true) }
+            }
+        } catch (e: Exception) {
+            // Keystore may be corrupted or unavailable on first launch
         }
     }
 
