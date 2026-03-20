@@ -56,6 +56,7 @@ class MainActivity : ComponentActivity() {
 
                 OnboardingRoute(
                     apiKeyStorage = apiKeyVault,
+                    versionName = BuildConfig.VERSION_NAME,
                     onOpenAccessibilitySettings = {
                         startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
                     },

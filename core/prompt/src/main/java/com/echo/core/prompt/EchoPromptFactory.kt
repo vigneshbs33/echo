@@ -12,18 +12,16 @@ class EchoPromptFactory {
     ): PromptBundle {
         val contextLine = appContext
             ?.takeIf { it.isNotBlank() }
-            ?.let { "App context: The user is currently typing in $it." }
+            ?.let { "Context: The user is currently typing in $it." }
             .orEmpty()
 
         return PromptBundle(
             systemPrompt = buildString {
-                appendLine("You are Echo, a system-level writing assistant.")
+                appendLine("You are Echo, a smart writing assistant that makes people's writing look effortless.")
                 appendLine(toneInstruction(tone))
                 appendLine(globalConstraints)
                 appendLine(length.instruction)
-                if (contextLine.isNotBlank()) {
-                    appendLine(contextLine)
-                }
+                if (contextLine.isNotBlank()) appendLine(contextLine)
             }.trim(),
             userPrompt = input.trim(),
         )
@@ -31,15 +29,21 @@ class EchoPromptFactory {
 
     fun buildReplyPrompt(contextText: String, replyIntent: EchoTone): PromptBundle {
         val intentInstruction = when (replyIntent) {
-            EchoTone.PROFESSIONAL -> "Write a positive, agreeing response to the following message."
-            EchoTone.EDGY -> "Write a polite declining response to the following message."
-            EchoTone.FRIENDLY -> "Write a clarifying response asking for more detail about the following message."
+            EchoTone.PROFESSIONAL ->
+                "Write a positive, agreeable response to the following message. Sound like a real person, not a bot."
+            EchoTone.EDGY ->
+                "Write a polite but firm declining response to the following message. Keep it real and direct."
+            EchoTone.FRIENDLY ->
+                "Write a curious, warm response asking for more detail about the following message."
         }
         return PromptBundle(
             systemPrompt = """
-                You are Echo, a private writing assistant.
+                You are Echo, a personal writing assistant.
                 $intentInstruction
-                Keep the response concise (1-2 sentences). Do not include any quotes, introductions, or explanations.
+                Keep the reply to 1-3 sentences max. Sound natural and human, like a real person texting back.
+                Never use em dashes (—). Never use markdown. No "Here is your reply:" intros. Just the reply text.
+                Never use em dashes (—). Use commas, periods, or rephrase instead.
+                Output ONLY the reply text. Nothing else.
             """.trimIndent(),
             userPrompt = contextText.trim(),
         )
@@ -47,23 +51,31 @@ class EchoPromptFactory {
 
     private fun toneInstruction(tone: EchoTone): String = when (tone) {
         EchoTone.PROFESSIONAL ->
-            "Rewrite the input to sound polished, authoritative, concise, and formal. Remove slang and emojis."
+            """Rewrite the input to sound polished, clear, and professional.
+               It should sound like a confident, intelligent human wrote it — not a corporate robot.
+               Remove slang. Fix grammar. Keep it tight and purposeful."""
+
         EchoTone.FRIENDLY ->
-            "Rewrite the input to sound warm, helpful, conversational, and approachable."
+            """Rewrite the input to sound warm, genuine, and conversational.
+               It should sound like a real friend texting — approachable, easy to read, never stiff.
+               Use natural contractions (I'm, we'll, it's). Avoid sounding overly eager or fake-cheerful."""
+
         EchoTone.EDGY ->
-            "Rewrite the input to sound bold, creative, high-energy, and modern without changing the facts."
+            """Rewrite the input to sound bold, punchy, and full of personality.
+               High energy. Modern. Direct. The kind of message that makes people stop scrolling.
+               Don't be edgy for shock value — be compelling and real."""
     }
 
     private companion object {
         private val globalConstraints = """
-            Always preserve the user's intent and key facts.
-            Fix spelling, grammar, and punctuation errors.
-            Never add introductions like "Here is your rewrite." or sign-offs.
+            Always preserve the user's intent and key facts exactly.
+            Fix spelling, grammar, and punctuation errors naturally — don't over-correct.
+            Sound like a real, intelligent human wrote this — not an AI.
+            Never add introductions like "Here is your rewrite." or "Sure! Here's..." or any sign-offs.
             Never use em dashes (—). Use commas, periods, or rephrase instead.
-            Never use markdown formatting (no **, no #, no bullet points unless the input had them).
-            Output ONLY the rewritten text. Nothing else.
-            If the input is already strong, return it with only minimal necessary changes.
+            Never use markdown formatting (no **, no #, no bullet points unless the original had them).
+            Do not add extra sentences or ideas that weren't in the original.
+            Output ONLY the rewritten text. Nothing else at all.
         """.trimIndent()
     }
 }
-

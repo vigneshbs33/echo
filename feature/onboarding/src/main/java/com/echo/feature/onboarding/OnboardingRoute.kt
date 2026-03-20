@@ -6,6 +6,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 @Composable
 fun OnboardingRoute(
     apiKeyStorage: ApiKeyStorage,
+    versionName: String = "",
     onOpenAccessibilitySettings: () -> Unit,
     onOpenOverlaySettings: () -> Unit,
     onStartBackgroundService: () -> Unit,
@@ -15,6 +16,7 @@ fun OnboardingRoute(
     )
     OnboardingScreen(
         viewModel = viewModel,
+        versionName = versionName,
         onOpenAccessibilitySettings = onOpenAccessibilitySettings,
         onOpenOverlaySettings = onOpenOverlaySettings,
         onStartBackgroundService = onStartBackgroundService,

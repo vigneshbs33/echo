@@ -64,6 +64,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 @Composable
 internal fun OnboardingScreen(
     viewModel: OnboardingViewModel,
+    versionName: String,
     onOpenAccessibilitySettings: () -> Unit,
     onOpenOverlaySettings: () -> Unit,
     onStartBackgroundService: () -> Unit,
@@ -86,7 +87,7 @@ internal fun OnboardingScreen(
             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            item { HeroSection() }
+            item { HeroSection(versionName = versionName) }
             item {
                 ApiKeyCard(
                     apiKey = state.apiKey,
@@ -129,7 +130,7 @@ internal fun OnboardingScreen(
 }
 
 @Composable
-private fun HeroSection() {
+private fun HeroSection(versionName: String) {
     Column(
         modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -167,6 +168,12 @@ private fun HeroSection() {
             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.70f),
             textAlign = TextAlign.Center,
             lineHeight = 28.sp
+        )
+        Text(
+            text = "v$versionName",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.35f),
+            textAlign = TextAlign.Center,
         )
     }
 }
