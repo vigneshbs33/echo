@@ -4,7 +4,6 @@ import android.app.Service
 import android.content.Intent
 import android.os.IBinder
 import android.util.Log
-import com.echo.app.clipboard.GhostClipboardActivity
 import com.echo.app.overlay.EchoBubbleController
 import com.echo.app.vault.ApiKeyVault
 import com.echo.core.model.EchoTone
@@ -18,7 +17,6 @@ import kotlinx.coroutines.launch
 class EchoForegroundService : Service() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-
     private lateinit var bubbleController: EchoBubbleController
     private lateinit var vault: ApiKeyVault
 
@@ -40,48 +38,49 @@ class EchoForegroundService : Service() {
         }
 
         vault = ApiKeyVault(applicationContext)
-
         bubbleController = EchoBubbleController(
             context = this,
             onToneSelected = { tone -> handlePolish(tone) },
-            onReplySelected = { tone -> handleSmartReply(tone) },
+            onReplySelected = { tone -> handleSmartReplyFromClipboard(tone) },
         )
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == "TOGGLE_INCOGNITO") {
-            isIncognito = !isIncognito
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-                startForeground(
-                    EchoNotificationFactory.NOTIFICATION_ID,
-                    EchoNotificationFactory.build(this, isIncognito),
-                    android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
-                )
-            } else {
-                startForeground(
-                    EchoNotificationFactory.NOTIFICATION_ID,
-                    EchoNotificationFactory.build(this, isIncognito)
-                )
+        Log.d(TAG, "onStartCommand: action=${intent?.action}")
+
+        // Handle explicit actions — do NOT show the bubble for these.
+        when (intent?.action) {
+            ACTION_TOGGLE_INCOGNITO -> {
+                isIncognito = !isIncognito
+                val notif = EchoNotificationFactory.build(this, isIncognito)
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                    startForeground(EchoNotificationFactory.NOTIFICATION_ID, notif,
+                        android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+                } else {
+                    startForeground(EchoNotificationFactory.NOTIFICATION_ID, notif)
+                }
+                if (isIncognito) bubbleController.hide() else bubbleController.show()
+                return START_STICKY
+            }
+
+            ACTION_SMART_REPLY_FROM_GHOST -> {
+                val text = intent.getStringExtra(EXTRA_CLIPBOARD_TEXT).orEmpty()
+                val toneName = intent.getStringExtra(EXTRA_TONE_NAME).orEmpty()
+                val tone = runCatching { EchoTone.valueOf(toneName) }.getOrDefault(EchoTone.PROFESSIONAL)
+                handleSmartReply(tone, text)
+                return START_STICKY
             }
         }
 
-        if (intent?.action == "PROCESS_SMART_REPLY_FROM_GHOST") {
-            val text = intent.getStringExtra("CLIPBOARD_TEXT").orEmpty()
-            val toneName = intent.getStringExtra("TONE_NAME").orEmpty()
-            val tone = try { EchoTone.valueOf(toneName) } catch (e: Exception) { EchoTone.PROFESSIONAL }
-            handleSmartReply(tone, text)
-        }
-
+        // Default: show the bubble (first launch or START_STICKY restart).
         if (!isIncognito) {
             val shown = bubbleController.show()
             if (!shown) {
                 stopSelf()
                 return START_NOT_STICKY
             }
-        } else {
-            bubbleController.hide()
         }
-        
+
         return START_STICKY
     }
 
@@ -93,84 +92,119 @@ class EchoForegroundService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
-    // ────────────────────────────────────────────────────────────────
-    // Core polish flow: capture → AI → replace
-    // ────────────────────────────────────────────────────────────────
+    // ──────────────────────────────────────────────────────────────────────
+    // Polish flow: capture text via Accessibility → AI rewrite → inject back
+    // ──────────────────────────────────────────────────────────────────────
     private fun handlePolish(tone: EchoTone) {
+        Log.d(TAG, "handlePolish: tone=$tone")
         scope.launch {
             val apiKey = vault.get()
             if (apiKey.isNullOrBlank()) {
-                launch(Dispatchers.Main) { bubbleController.setError("No API key saved.") }
+                setError("No API key saved. Open Echo to set your key.")
                 return@launch
             }
 
-            val accessibilityService = EchoAccessibilityService.instance
-            if (accessibilityService == null) {
-                launch(Dispatchers.Main) { bubbleController.setError("Accessibility service not active.") }
+            val service = EchoAccessibilityService.instance
+            if (service == null) {
+                setError("Accessibility service not active. Enable it in Settings.")
                 return@launch
             }
 
-            val rawText = accessibilityService.captureText()
+            val rawText = service.captureText()
             if (rawText.isNullOrBlank()) {
-                launch(Dispatchers.Main) { bubbleController.setError("No text found. Focus a text field first.") }
+                setError("No text found. Tap inside a text field first.")
                 return@launch
             }
 
-            val repo = OpenAiRepository(apiKey = apiKey)
-
-            try {
-                val polished = repo.rewrite(text = rawText, tone = tone)
-                val replaced = accessibilityService.replaceText(polished)
+            runCatching {
+                val polished = OpenAiRepository(apiKey).rewrite(rawText, tone)
+                val replaced = service.replaceText(polished)
                 launch(Dispatchers.Main) {
                     if (replaced) bubbleController.setDone(polished)
-                    else bubbleController.setError("Couldn't replace text in this app.")
+                    else setError("Could not replace text in this app.")
                 }
-            } catch (e: Exception) {
+            }.onFailure { e ->
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 Log.e(TAG, "Polish failed", e)
-                launch(Dispatchers.Main) { bubbleController.setError(e.message ?: "Unknown error") }
+                setError(friendlyError(e))
             }
         }
     }
 
-    private fun handleSmartReply(tone: EchoTone, contextText: String = "") {
+    // ──────────────────────────────────────────────────────────────────────
+    // Smart Reply via clipboard: launched by GhostClipboardActivity
+    // ──────────────────────────────────────────────────────────────────────
+    private fun handleSmartReplyFromClipboard(tone: EchoTone) {
+        // Route through GhostClipboardActivity so we can legally read clipboard on Android 10+
+        val intent = android.content.Intent(this, com.echo.app.clipboard.GhostClipboardActivity::class.java).apply {
+            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
+            putExtra(EXTRA_TONE_NAME, tone.name)
+        }
+        startActivity(intent)
+    }
+
+    private fun handleSmartReply(tone: EchoTone, contextText: String) {
+        Log.d(TAG, "handleSmartReply: tone=$tone textLen=${contextText.length}")
         scope.launch {
-            if (contextText.isBlank() || contextText.length < 5) {
-                launch(Dispatchers.Main) { bubbleController.setError("Copied text is too short or invalid.") }
+            if (contextText.isBlank()) {
+                setError("Nothing on clipboard. Copy a message first, then try Smart Reply.")
                 return@launch
             }
 
             val apiKey = vault.get()
             if (apiKey.isNullOrBlank()) {
-                launch(Dispatchers.Main) { bubbleController.setError("No API key saved.") }
+                setError("No API key saved. Open Echo to set your key.")
                 return@launch
             }
 
-            val accessibilityService = EchoAccessibilityService.instance
-            if (accessibilityService == null) {
-                launch(Dispatchers.Main) { bubbleController.setError("Accessibility not active.") }
+            val service = EchoAccessibilityService.instance
+            if (service == null) {
+                setError("Accessibility service not active. Enable it in Settings.")
                 return@launch
             }
 
-            val repo = OpenAiRepository(apiKey = apiKey)
-
-            try {
-                val reply = repo.generateReply(contextText = contextText, replyIntent = tone)
-                val replaced = accessibilityService.replaceText(reply)
+            runCatching {
+                val reply = OpenAiRepository(apiKey).generateReply(contextText, tone)
+                val replaced = service.replaceText(reply)
                 launch(Dispatchers.Main) {
                     if (replaced) bubbleController.setDone(reply)
-                    else bubbleController.setError("Couldn't insert reply into this app.")
+                    else setError("Could not insert reply into this app.")
                 }
-            } catch (e: Exception) {
+            }.onFailure { e ->
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 Log.e(TAG, "Smart reply failed", e)
-                launch(Dispatchers.Main) { bubbleController.setError(e.message ?: "Unknown error") }
+                setError(friendlyError(e))
             }
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // Helpers
+    // ──────────────────────────────────────────────────────────────────────
+    private suspend fun setError(msg: String) {
+        kotlinx.coroutines.withContext(Dispatchers.Main) {
+            bubbleController.setError(msg)
+        }
+    }
+
+    private fun friendlyError(e: Throwable): String {
+        val msg = e.message ?: "Unknown error"
+        return when {
+            msg.contains("401") -> "Invalid API key. Check your key in Echo settings."
+            msg.contains("429") -> "Rate limit reached. Wait a moment and try again."
+            msg.contains("timeout", ignoreCase = true) ||
+            msg.contains("connect", ignoreCase = true) -> "Network error. Check your internet connection."
+            else -> msg.take(120)
         }
     }
 
     companion object {
         const val TAG = "EchoForegroundService"
+        const val ACTION_TOGGLE_INCOGNITO = "TOGGLE_INCOGNITO"
+        const val ACTION_SMART_REPLY_FROM_GHOST = "PROCESS_SMART_REPLY_FROM_GHOST"
+        const val EXTRA_CLIPBOARD_TEXT = "CLIPBOARD_TEXT"
+        const val EXTRA_TONE_NAME = "TONE_NAME"
+
         @Volatile
         var isIncognito: Boolean = false
     }

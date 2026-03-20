@@ -58,7 +58,10 @@ class EchoPromptFactory {
         private val globalConstraints = """
             Always preserve the user's intent and key facts.
             Fix spelling, grammar, and punctuation errors.
-            Never add introductions like "Here is your rewrite."
+            Never add introductions like "Here is your rewrite." or sign-offs.
+            Never use em dashes (—). Use commas, periods, or rephrase instead.
+            Never use markdown formatting (no **, no #, no bullet points unless the input had them).
+            Output ONLY the rewritten text. Nothing else.
             If the input is already strong, return it with only minimal necessary changes.
         """.trimIndent()
     }

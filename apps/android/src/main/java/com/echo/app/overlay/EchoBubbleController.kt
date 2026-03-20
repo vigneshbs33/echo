@@ -112,6 +112,13 @@ class EchoBubbleController(
         val params = bubbleLayoutParams()
         val frame = FrameLayout(context)
 
+        // CRITICAL FIX: Compose traverses the view tree upward to find LifecycleOwner.
+        // If the outer FrameLayout doesn't have one set, it crashes with
+        // "ViewTreeLifecycleOwner not found". We must attach all owners to the root frame.
+        frame.setViewTreeLifecycleOwner(lifecycle)
+        frame.setViewTreeViewModelStoreOwner(vmStore)
+        frame.setViewTreeSavedStateRegistryOwner(savedStateOwner)
+
         val displayMetrics = context.resources.displayMetrics
         val screenWidth = displayMetrics.widthPixels
 
@@ -253,11 +260,7 @@ private fun IdleBubble(onTap: () -> Unit, onDrag: (Float, Float) -> Unit, onDrag
                 shape = CircleShape,
             )
             .clip(CircleShape)
-            .pointerInput(Unit) {
-                detectTapGestures(
-                    onTap = { onTap() }
-                )
-            }
+            .clickable(onClick = onTap)
             .pointerInput(Unit) {
                 detectDragGestures(
                     onDragEnd = onDragEnd,
