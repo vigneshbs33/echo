@@ -6,6 +6,7 @@ import android.os.IBinder
 import android.util.Log
 import com.echo.app.overlay.EchoBubbleController
 import com.echo.app.vault.ApiKeyVault
+import com.echo.app.vault.SettingsVault
 import com.echo.core.model.EchoTone
 import com.echo.core.network.OpenAiRepository
 import kotlinx.coroutines.CoroutineScope
@@ -19,6 +20,7 @@ class EchoForegroundService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private lateinit var bubbleController: EchoBubbleController
     private lateinit var vault: ApiKeyVault
+    private lateinit var settingsVault: SettingsVault
 
     override fun onCreate() {
         super.onCreate()
@@ -38,6 +40,7 @@ class EchoForegroundService : Service() {
         }
 
         vault = ApiKeyVault(applicationContext)
+        settingsVault = SettingsVault(applicationContext)
         bubbleController = EchoBubbleController(
             context = this,
             onToneSelected = { tone -> handlePolish(tone) },
@@ -60,6 +63,14 @@ class EchoForegroundService : Service() {
                     startForeground(EchoNotificationFactory.NOTIFICATION_ID, notif)
                 }
                 if (isIncognito) bubbleController.hide() else bubbleController.show()
+                return START_STICKY
+            }
+
+            ACTION_SHOW_BUBBLE -> {
+                // Force-show the bubble. Hides first in case a stale view is attached.
+                isIncognito = false
+                bubbleController.hide()
+                bubbleController.show()
                 return START_STICKY
             }
 
@@ -117,7 +128,8 @@ class EchoForegroundService : Service() {
             }
 
             runCatching {
-                val polished = OpenAiRepository(apiKey).rewrite(rawText, tone)
+                val customInstruction = settingsVault.getCustomInstruction(tone.name)
+                val polished = OpenAiRepository(apiKey).rewrite(rawText, tone, customInstruction)
                 val replaced = service.replaceText(polished)
                 launch(Dispatchers.Main) {
                     if (replaced) bubbleController.setDone(polished)
@@ -201,6 +213,7 @@ class EchoForegroundService : Service() {
     companion object {
         const val TAG = "EchoForegroundService"
         const val ACTION_TOGGLE_INCOGNITO = "TOGGLE_INCOGNITO"
+        const val ACTION_SHOW_BUBBLE = "SHOW_BUBBLE"
         const val ACTION_SMART_REPLY_FROM_GHOST = "PROCESS_SMART_REPLY_FROM_GHOST"
         const val EXTRA_CLIPBOARD_TEXT = "CLIPBOARD_TEXT"
         const val EXTRA_TONE_NAME = "TONE_NAME"

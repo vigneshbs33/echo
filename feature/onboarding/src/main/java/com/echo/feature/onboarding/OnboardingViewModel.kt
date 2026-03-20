@@ -28,8 +28,17 @@ interface ApiKeyStorage {
     fun clear()
 }
 
+/**
+ * Interface for reading/writing custom tone instructions.
+ */
+interface SettingsStorage {
+    fun saveCustomInstruction(toneName: String, instruction: String)
+    fun getCustomInstruction(toneName: String): String
+}
+
 class OnboardingViewModel(
     private val apiKeyStorage: ApiKeyStorage,
+    private val settingsStorage: SettingsStorage,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(OnboardingState())
@@ -67,6 +76,14 @@ class OnboardingViewModel(
         _state.update { it.copy(apiKey = "", apiKeySaved = false) }
     }
 
+    fun saveCustomInstruction(toneName: String, instruction: String) {
+        settingsStorage.saveCustomInstruction(toneName, instruction)
+    }
+
+    fun getCustomInstruction(toneName: String): String {
+        return settingsStorage.getCustomInstruction(toneName)
+    }
+
     fun checkPermissions(context: Context) {
         val hasAccessibility = isAccessibilityEnabled(context)
         val hasOverlay = Settings.canDrawOverlays(context)
@@ -91,9 +108,12 @@ class OnboardingViewModel(
         return enabledServices.split(":").any { it.equals(serviceName, ignoreCase = true) }
     }
 
-    class Factory(private val storage: ApiKeyStorage) : ViewModelProvider.Factory {
+    class Factory(
+        private val apiKeyStorage: ApiKeyStorage,
+        private val settingsStorage: SettingsStorage,
+    ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            OnboardingViewModel(storage) as T
+            OnboardingViewModel(apiKeyStorage, settingsStorage) as T
     }
 }

@@ -6,13 +6,14 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 @Composable
 fun OnboardingRoute(
     apiKeyStorage: ApiKeyStorage,
+    settingsStorage: SettingsStorage,
     versionName: String = "",
     onOpenAccessibilitySettings: () -> Unit,
     onOpenOverlaySettings: () -> Unit,
     onStartBackgroundService: () -> Unit,
 ) {
     val viewModel: OnboardingViewModel = viewModel(
-        factory = OnboardingViewModel.Factory(apiKeyStorage),
+        factory = OnboardingViewModel.Factory(apiKeyStorage, settingsStorage),
     )
     OnboardingScreen(
         viewModel = viewModel,

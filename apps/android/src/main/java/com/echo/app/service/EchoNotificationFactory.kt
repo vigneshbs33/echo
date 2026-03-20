@@ -3,7 +3,9 @@ package com.echo.app.service
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
 import android.os.Build
 
 object EchoNotificationFactory {
@@ -24,19 +26,37 @@ object EchoNotificationFactory {
     }
 
     fun build(context: Context, isIncognito: Boolean = false): Notification {
-        val intent = android.content.Intent(context, com.echo.app.service.EchoForegroundService::class.java).apply {
-            action = "TOGGLE_INCOGNITO"
+        // Incognito toggle action
+        val incognitoIntent = Intent(context, EchoForegroundService::class.java).apply {
+            action = EchoForegroundService.ACTION_TOGGLE_INCOGNITO
         }
-        val pendingIntent = android.app.PendingIntent.getService(context, 0, intent, android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE)
+        val incognitoPi = PendingIntent.getService(
+            context, 0, incognitoIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
 
-        val actionText = if (isIncognito) "Resume Listening" else "Pause (Incognito)"
+        // Show Bubble action — tapping this re-shows the floating bubble
+        val showBubbleIntent = Intent(context, EchoForegroundService::class.java).apply {
+            action = EchoForegroundService.ACTION_SHOW_BUBBLE
+        }
+        val showBubblePi = PendingIntent.getService(
+            context, 1, showBubbleIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val incognitoLabel = if (isIncognito) "Resume" else "Pause"
+        val contentText = if (isIncognito)
+            "Paused — tap Resume to bring Echo back."
+        else
+            context.getString(com.echo.app.R.string.notification_text)
 
         return Notification.Builder(context, CHANNEL_ID)
             .setSmallIcon(com.echo.app.R.drawable.ic_echo_logo)
             .setContentTitle(context.getString(com.echo.app.R.string.notification_title))
-            .setContentText(if (isIncognito) "Echo paused directly from notification" else context.getString(com.echo.app.R.string.notification_text))
+            .setContentText(contentText)
             .setOngoing(true)
-            .addAction(android.R.drawable.ic_media_pause, actionText, pendingIntent)
+            .addAction(android.R.drawable.ic_menu_add, "Show Bubble", showBubblePi)
+            .addAction(android.R.drawable.ic_media_pause, incognitoLabel, incognitoPi)
             .build()
     }
 }

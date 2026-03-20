@@ -17,6 +17,7 @@ class OpenAiRepository(
     suspend fun rewrite(
         text: String,
         tone: EchoTone,
+        customInstruction: String = "",
         length: RewriteLength = RewriteLength.SIMILAR,
         appContext: String? = null,
     ): String {
@@ -25,6 +26,7 @@ class OpenAiRepository(
             tone = tone,
             appContext = appContext,
             length = length,
+            customInstruction = customInstruction,
         )
 
         val request = OpenAiRequest(
@@ -51,8 +53,12 @@ class OpenAiRepository(
             ?: throw RuntimeException("Empty response from OpenAI")
     }
 
-    suspend fun generateReply(contextText: String, replyIntent: EchoTone): String {
-        val prompt = promptFactory.buildReplyPrompt(contextText, replyIntent)
+    suspend fun generateReply(
+        contextText: String,
+        replyIntent: EchoTone,
+        customInstruction: String = "",
+    ): String {
+        val prompt = promptFactory.buildReplyPrompt(contextText, replyIntent, customInstruction)
         val request = OpenAiRequest(
             model = "gpt-4o-mini",
             messages = listOf(

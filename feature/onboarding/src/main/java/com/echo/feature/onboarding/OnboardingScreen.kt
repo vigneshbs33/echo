@@ -1,11 +1,15 @@
 package com.echo.feature.onboarding
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -57,6 +61,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -123,7 +128,7 @@ internal fun OnboardingScreen(
                     },
                 )
             }
-            item { ToneSection() }
+            item { ToneSection(viewModel) }
             item { Spacer(Modifier.height(24.dp)) }
         }
     }
@@ -140,13 +145,7 @@ private fun HeroSection(versionName: String) {
             modifier = Modifier
                 .size(96.dp)
                 .background(
-                    brush = Brush.linearGradient(
-                        colors = listOf(
-                            Color(0xFF6366F1), // Indigo
-                            Color(0xFFA855F7), // Purple
-                            Color(0xFFEC4899)  // Pink
-                        )
-                    ),
+                    color = Color.Black,
                     shape = CircleShape,
                 ),
             contentAlignment = Alignment.Center,
@@ -169,11 +168,35 @@ private fun HeroSection(versionName: String) {
             textAlign = TextAlign.Center,
             lineHeight = 28.sp
         )
-        Text(
-            text = "v$versionName",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.35f),
-            textAlign = TextAlign.Center,
+        
+        val context = LocalContext.current
+        val annotatedString = androidx.compose.ui.text.buildAnnotatedString {
+            append("v$versionName • Created by ")
+            pushStringAnnotation(tag = "URL", annotation = "https://www.vigneshbs.xyz/")
+            withStyle(style = androidx.compose.ui.text.SpanStyle(
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold,
+                textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline
+            )) {
+                append("Vignesh B S")
+            }
+            pop()
+        }
+        
+        androidx.compose.foundation.text.ClickableText(
+            text = annotatedString,
+            style = MaterialTheme.typography.labelSmall.copy(
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
+                textAlign = TextAlign.Center
+            ),
+            modifier = Modifier.padding(top = 8.dp),
+            onClick = { offset ->
+                annotatedString.getStringAnnotations(tag = "URL", start = offset, end = offset)
+                    .firstOrNull()?.let { annotation ->
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(annotation.item))
+                        context.startActivity(intent)
+                    }
+            }
         )
     }
 }
@@ -325,6 +348,16 @@ private fun LaunchCard(
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                         textAlign = TextAlign.Center,
                     )
+                    Button(
+                        onClick = onStart,
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                        ),
+                    ) {
+                        Text("Start Again")
+                    }
                 }
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -352,28 +385,98 @@ private fun LaunchCard(
 }
 
 @Composable
-private fun ToneSection() {
-    EchoCard(title = "Tone Modes") {
-        val tones = listOf(
-            Triple("👔", "Professional", "Polished, formal, authoritative"),
-            Triple("👋", "Friendly", "Warm, approachable, conversational"),
-            Triple("🔥", "Edgy", "Bold, punchy, modern energy"),
+private fun ToneSection(viewModel: OnboardingViewModel) {
+    EchoCard(title = "Tone Personalization") {
+        Text(
+            text = "Answer the scenarios below in your authentic voice. Echo will analyze your style and mimic it when rewriting text.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
         )
-        tones.forEach { (emoji, name, desc) ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(emoji, fontSize = 24.sp)
-                Column {
-                    Text(name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                    Text(
-                        desc,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
+        Spacer(Modifier.height(12.dp))
+
+        // Emoji, ToneName, Description, Scenario Question
+        val tones = listOf(
+            listOf("👔", "PROFESSIONAL", "Polished, formal, authoritative", "Imagine emailing your team about a project. Ask them to prioritize it and finish by Thursday, while offering your help. Write the exact message."),
+            listOf("👋", "FRIENDLY", "Warm, approachable, conversational", "Imagine texting a close friend. You're 20 mins late for dinner. Apologize, tell them to order apps, and show excitement to see them. Write the exact text."),
+            listOf("🔥", "EDGY", "Bold, punchy, modern energy", "Imagine a persistent salesperson is DMing you. Shut down the conversation quickly, clearly, and confidently so they don't message you again. Write your exact reply."),
+            listOf("💬", "REPLY", "Smart Reply Settings", "Imagine a coworker sent a massive 4-paragraph idea. You agree, but are too busy to write a long response right now. Write a quick reply acknowledging it and suggesting you talk tomorrow.")
+        )
+
+        tones.forEach { toneData ->
+            val emoji = toneData[0]
+            val toneName = toneData[1]
+            val desc = toneData[2]
+            val question = toneData[3]
+            var expanded by remember { mutableStateOf(false) }
+            var draft by remember(toneName) {
+                mutableStateOf(viewModel.getCustomInstruction(toneName))
+            }
+
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text(emoji, fontSize = 24.sp)
+                        Column {
+                            Text(
+                                toneName.lowercase().replaceFirstChar { it.uppercase() },
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            Text(
+                                desc,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
+                            )
+                        }
+                    }
+                    IconButton(onClick = { expanded = !expanded }) {
+                        Text(if (expanded) "✕" else "✏️", fontSize = 18.sp)
+                    }
+                }
+
+                AnimatedVisibility(visible = expanded) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = question,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(bottom = 4.dp)
+                        )
+                        OutlinedTextField(
+                            value = draft,
+                            onValueChange = { draft = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("Your response") },
+                            placeholder = { Text("Type exactly how you would naturally write it...") },
+                            minLines = 3,
+                            maxLines = 6,
+                        )
+                        Button(
+                            onClick = {
+                                viewModel.saveCustomInstruction(toneName, draft)
+                                expanded = false
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text("Save")
+                        }
+                    }
+                }
+
+                if (tones.last()[1] != toneName) {
+                    HorizontalDivider(
+                        modifier = Modifier.padding(vertical = 4.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
                     )
                 }
             }

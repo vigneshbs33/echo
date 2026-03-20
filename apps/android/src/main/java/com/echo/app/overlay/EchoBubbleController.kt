@@ -185,8 +185,17 @@ class EchoBubbleController(
         lifecycleStub?.stop()
         lifecycleStub = null
         
-        containerView?.let {
-            try { windowManager.removeView(it) } catch (_: Exception) {}
+        containerView?.let { frame ->
+            try {
+                // IMPORTANT: Must dispose the Compose view to detach it from the dead lifecycle,
+                // otherwise relaunching the bubble crashes silently when it tries to reuse the Compose state.
+                val composeView = (frame as? FrameLayout)?.getChildAt(0) as? ComposeView
+                composeView?.disposeComposition()
+                
+                windowManager.removeView(frame)
+            } catch (e: Exception) {
+                android.util.Log.e("EchoBubble", "Failed to remove bubble view", e)
+            }
         }
         containerView = null
     }
@@ -254,9 +263,7 @@ private fun IdleBubble(onTap: () -> Unit, onDrag: (Float, Float) -> Unit, onDrag
         modifier = Modifier
             .size(56.dp)
             .background(
-                brush = Brush.radialGradient(
-                    colors = listOf(Color(0xFF90B4D8), Color(0xFF355C7D)),
-                ),
+                color = Color(0xFF0D1117),
                 shape = CircleShape,
             )
             .clip(CircleShape)

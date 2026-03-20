@@ -9,6 +9,7 @@ class EchoPromptFactory {
         tone: EchoTone,
         appContext: String? = null,
         length: RewriteLength = RewriteLength.SIMILAR,
+        customInstruction: String = "",
     ): PromptBundle {
         val contextLine = appContext
             ?.takeIf { it.isNotBlank() }
@@ -22,12 +23,19 @@ class EchoPromptFactory {
                 appendLine(globalConstraints)
                 appendLine(length.instruction)
                 if (contextLine.isNotBlank()) appendLine(contextLine)
+                if (customInstruction.isNotBlank()) {
+                    appendLine("Here is an example of the user's natural writing style in this tone: '$customInstruction'. Analyze their vocabulary, pacing, and sentence structure, and strictly match this vibe.")
+                }
             }.trim(),
             userPrompt = input.trim(),
         )
     }
 
-    fun buildReplyPrompt(contextText: String, replyIntent: EchoTone): PromptBundle {
+    fun buildReplyPrompt(
+        contextText: String,
+        replyIntent: EchoTone,
+        customInstruction: String = "",
+    ): PromptBundle {
         val intentInstruction = when (replyIntent) {
             EchoTone.PROFESSIONAL ->
                 "Write a positive, agreeable response to the following message. Sound like a real person, not a bot."
@@ -36,14 +44,14 @@ class EchoPromptFactory {
             EchoTone.FRIENDLY ->
                 "Write a curious, warm response asking for more detail about the following message."
         }
+        val customLine = if (customInstruction.isNotBlank()) "\nHere is an example of the user's natural writing style: '$customInstruction'. Analyze their vocabulary, pacing, and sentence structure, and strictly match this vibe." else ""
         return PromptBundle(
             systemPrompt = """
                 You are Echo, a personal writing assistant.
                 $intentInstruction
                 Keep the reply to 1-3 sentences max. Sound natural and human, like a real person texting back.
                 Never use em dashes (—). Never use markdown. No "Here is your reply:" intros. Just the reply text.
-                Never use em dashes (—). Use commas, periods, or rephrase instead.
-                Output ONLY the reply text. Nothing else.
+                Output ONLY the reply text. Nothing else.$customLine
             """.trimIndent(),
             userPrompt = contextText.trim(),
         )

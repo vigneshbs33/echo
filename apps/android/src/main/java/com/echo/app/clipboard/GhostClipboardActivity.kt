@@ -8,23 +8,43 @@ import android.util.Log
 import com.echo.app.service.EchoForegroundService
 
 /**
- * A completely transparent, invisible Activity that launches for ~50ms
- * purely to legally read the clipboard (bypasses Android 10+ background clipboard restrictions)
- * and route the text back to EchoForegroundService.
+ * An invisible Activity that briefly gains window focus so Android grants
+ * clipboard read access (Android 10+ restriction).
+ *
+ * IMPORTANT: The clipboard MUST be read in onWindowFocusChanged(hasFocus=true),
+ * NOT in onCreate. Reading it in onCreate happens before the window has focus,
+ * causing Android to return an empty or null clipboard on API 29+.
  */
 class GhostClipboardActivity : Activity() {
+
+    private var toneName: String = ""
+    private var dispatched = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        toneName = intent.getStringExtra(EchoForegroundService.EXTRA_TONE_NAME).orEmpty()
+        // Do NOT read clipboard here. Wait for window focus.
+    }
 
-        val clip = getSystemService(ClipboardManager::class.java).primaryClip
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (!hasFocus || dispatched) return
+        dispatched = true // prevent double-dispatch on focus flickers
+
+        val clip = try {
+            getSystemService(ClipboardManager::class.java).primaryClip
+        } catch (e: Exception) {
+            Log.e("EchoGhost", "Failed to read clipboard", e)
+            null
+        }
+
         val contextText = if (clip != null && clip.itemCount > 0) {
             clip.getItemAt(0).coerceToText(this)?.toString().orEmpty()
         } else {
             ""
         }
 
-        val toneName = intent.getStringExtra(EchoForegroundService.EXTRA_TONE_NAME).orEmpty()
-        Log.d("EchoGhost", "Clipboard len=${contextText.length}, tone=$toneName")
+        Log.d("EchoGhost", "Clipboard read on focus: len=${contextText.length}, tone=$toneName")
 
         val serviceIntent = Intent(this, EchoForegroundService::class.java).apply {
             action = EchoForegroundService.ACTION_SMART_REPLY_FROM_GHOST

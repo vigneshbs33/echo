@@ -29,8 +29,7 @@
             android:name=".clipboard.GhostClipboardActivity"
             android:theme="@android:style/Theme.Translucent.NoTitleBar"
             android:excludeFromRecents="true"
-            android:taskAffinity=""
-            android:launchMode="singleInstance" />
+            android:exported="false" />
 
         <service
             android:name=".service.EchoForegroundService"

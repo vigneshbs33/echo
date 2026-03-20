@@ -9,6 +9,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import com.echo.app.service.EchoForegroundService
 import com.echo.app.vault.ApiKeyVault
+import com.echo.app.vault.SettingsVault
 import com.echo.core.designsystem.theme.EchoTheme
 import com.echo.feature.onboarding.OnboardingRoute
 import androidx.compose.runtime.mutableStateOf
@@ -26,6 +27,7 @@ import androidx.compose.foundation.layout.Column
 class MainActivity : ComponentActivity() {
 
     private lateinit var apiKeyVault: ApiKeyVault
+    private lateinit var settingsVault: SettingsVault
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -56,6 +58,7 @@ class MainActivity : ComponentActivity() {
 
                 OnboardingRoute(
                     apiKeyStorage = apiKeyVault,
+                    settingsStorage = settingsVault,
                     versionName = BuildConfig.VERSION_NAME,
                     onOpenAccessibilitySettings = {
                         startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
@@ -69,6 +72,9 @@ class MainActivity : ComponentActivity() {
                         )
                     },
                     onStartBackgroundService = {
+                        // Stop the old one if running, then start fresh for a clean slate
+                        val stopIntent = Intent(this, EchoForegroundService::class.java)
+                        stopService(stopIntent)
                         val serviceIntent = Intent(this, EchoForegroundService::class.java)
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                             startForegroundService(serviceIntent)
