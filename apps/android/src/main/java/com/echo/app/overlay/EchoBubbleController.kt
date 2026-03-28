@@ -24,14 +24,19 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
@@ -80,7 +85,7 @@ sealed class BubbleUiState {
     object Idle : BubbleUiState()
     object Menu : BubbleUiState()
     object Loading : BubbleUiState()
-    data class Done(val preview: String) : BubbleUiState()
+    data class Done(val preview: String, val reason: String? = null) : BubbleUiState()
     data class Error(val message: String) : BubbleUiState()
     object SmartReplyMenu : BubbleUiState()
 }
@@ -89,11 +94,13 @@ class EchoBubbleController(
     private val context: Context,
     private val onToneSelected: (EchoTone) -> Unit,
     private val onReplySelected: (EchoTone) -> Unit,
+    private val onUndoSelected: () -> Unit,
 ) {
     private val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
     private var containerView: View? = null
     private var lifecycleStub: LifecycleOwnerStub? = null
     private val uiState: MutableState<BubbleUiState> = mutableStateOf(BubbleUiState.Idle)
+    private val canUndoState: MutableState<Boolean> = mutableStateOf(false)
     private var lastX = 0
     private var lastY = 0
 
@@ -147,6 +154,8 @@ class EchoBubbleController(
                         onReplyFlowSelected = {
                             uiState.value = BubbleUiState.SmartReplyMenu
                         },
+                        canUndo = canUndoState.value,
+                        onUndoSelected = onUndoSelected,
                         onDismiss = { uiState.value = BubbleUiState.Idle },
                         onDrag = { dx, dy ->
                             params.x += dx.toInt()
@@ -201,9 +210,10 @@ class EchoBubbleController(
     }
 
     fun setLoading() { uiState.value = BubbleUiState.Loading }
-    fun setDone(preview: String) { uiState.value = BubbleUiState.Done(preview) }
+    fun setDone(preview: String, reason: String? = null) { uiState.value = BubbleUiState.Done(preview, reason) }
     fun setError(msg: String) { uiState.value = BubbleUiState.Error(msg) }
     fun resetToIdle() { uiState.value = BubbleUiState.Idle }
+    fun setCanUndo(canUndo: Boolean) { canUndoState.value = canUndo }
 
     private fun bubbleLayoutParams() = WindowManager.LayoutParams(
         WindowManager.LayoutParams.WRAP_CONTENT,
@@ -231,6 +241,8 @@ private fun EchoBubble(
     onToneSelected: (EchoTone) -> Unit,
     onReplySelected: (EchoTone) -> Unit,
     onReplyFlowSelected: () -> Unit,
+    canUndo: Boolean,
+    onUndoSelected: () -> Unit,
     onDismiss: () -> Unit,
     onDrag: (Float, Float) -> Unit,
     onDragEnd: () -> Unit,
@@ -245,9 +257,15 @@ private fun EchoBubble(
     ) { state ->
         when (state) {
             is BubbleUiState.Idle -> IdleBubble(onTap = onBubbleTap, onDrag = onDrag, onDragEnd = onDragEnd)
-            is BubbleUiState.Menu -> ToneMenu(onToneSelected = onToneSelected, onReplyFlowSelected = onReplyFlowSelected, onDismiss = onDismiss)
+            is BubbleUiState.Menu -> ToneMenu(
+                onToneSelected = onToneSelected, 
+                onReplyFlowSelected = onReplyFlowSelected, 
+                canUndo = canUndo,
+                onUndoSelected = onUndoSelected,
+                onDismiss = onDismiss
+            )
             is BubbleUiState.Loading -> LoadingBubble(onDismiss = onDismiss)
-            is BubbleUiState.Done -> DoneBubble(preview = state.preview, onDismiss = onDismiss)
+            is BubbleUiState.Done -> DoneBubble(preview = state.preview, reason = state.reason, onDismiss = onDismiss)
             is BubbleUiState.Error -> ErrorBubble(message = state.message, onDismiss = onDismiss)
             is BubbleUiState.SmartReplyMenu -> SmartReplyMenuBubble(
                 onReplySelected = onReplySelected,
@@ -305,39 +323,72 @@ private fun LoadingBubble(onDismiss: () -> Unit) {
 }
 
 @Composable
-private fun ToneMenu(onToneSelected: (EchoTone) -> Unit, onReplyFlowSelected: () -> Unit, onDismiss: () -> Unit) {
+private fun ToneMenu(
+    onToneSelected: (EchoTone) -> Unit, 
+    onReplyFlowSelected: () -> Unit, 
+    canUndo: Boolean,
+    onUndoSelected: () -> Unit,
+    onDismiss: () -> Unit
+) {
     Card(
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFF172026)),
         elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
     ) {
         Column(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier
+                .padding(12.dp)
+                .heightIn(max = 240.dp)
+                .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
+            if (canUndo) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 2.dp),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.15f))
+                            .clickable { onUndoSelected(); onDismiss() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("↩️", fontSize = 16.sp)
+                    }
+                }
+            }
             Text("Pick a tone", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.6f))
             Spacer(Modifier.height(4.dp))
-            val tones = listOf(
-                Triple(EchoTone.PROFESSIONAL, "👔", "Pro"),
-                Triple(EchoTone.FRIENDLY, "👋", "Friendly"),
-                Triple(EchoTone.EDGY, "🔥", "Edgy"),
-            )
-            tones.forEach { (tone, emoji, label) ->
-                ToneButton(emoji = emoji, label = label, onClick = { onToneSelected(tone) })
+            
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                ToneButton(emoji = "👔", label = "Pro", onClick = { onToneSelected(EchoTone.PROFESSIONAL) }, modifier = Modifier.weight(1f))
+                ToneButton(emoji = "👋", label = "Friendly", onClick = { onToneSelected(EchoTone.FRIENDLY) }, modifier = Modifier.weight(1f))
             }
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                ToneButton(emoji = "🔥", label = "Edgy", onClick = { onToneSelected(EchoTone.EDGY) }, modifier = Modifier.weight(1f))
+                ToneButton(emoji = "📣", label = "Promo", onClick = { onToneSelected(EchoTone.PROMOTION) }, modifier = Modifier.weight(1f))
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                ToneButton(emoji = "✅", label = "Fact", onClick = { onToneSelected(EchoTone.FACT_CHECK) }, modifier = Modifier.weight(1f))
+                Spacer(modifier = Modifier.weight(1f))
+            }
+            
             Spacer(Modifier.height(4.dp))
             Row(
                 modifier = Modifier
+                    .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
                     .background(Color(0xFF3B82F6).copy(alpha = 0.2f))
                     .clickable(onClick = onReplyFlowSelected)
                     .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("✨", fontSize = 18.sp)
-                Text("Smart Reply", style = MaterialTheme.typography.labelLarge, color = Color.White, fontWeight = FontWeight.SemiBold)
+                Text("✨", fontSize = 16.sp, modifier = Modifier.padding(end = 8.dp))
+                Text("Smart Reply", style = MaterialTheme.typography.labelMedium, color = Color.White, fontWeight = FontWeight.SemiBold)
             }
             Spacer(Modifier.height(4.dp))
             Text(
@@ -351,23 +402,24 @@ private fun ToneMenu(onToneSelected: (EchoTone) -> Unit, onReplyFlowSelected: ()
 }
 
 @Composable
-private fun ToneButton(emoji: String, label: String, onClick: () -> Unit) {
+private fun ToneButton(emoji: String, label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Row(
-        modifier = Modifier
+        modifier = modifier
             .clip(RoundedCornerShape(12.dp))
             .background(Color.White.copy(alpha = 0.08f))
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(emoji, fontSize = 18.sp)
-        Text(label, style = MaterialTheme.typography.labelLarge, color = Color.White, fontWeight = FontWeight.SemiBold)
+        Text(emoji, fontSize = 16.sp, modifier = Modifier.padding(end = 4.dp))
+        Text(label, style = MaterialTheme.typography.labelMedium, color = Color.White, fontWeight = FontWeight.SemiBold)
     }
 }
 
 @Composable
-private fun DoneBubble(preview: String, onDismiss: () -> Unit) {
+private fun DoneBubble(preview: String, reason: String? = null, onDismiss: () -> Unit) {
+    var showReason by remember { mutableStateOf(false) }
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFF162B1A)),
@@ -377,7 +429,30 @@ private fun DoneBubble(preview: String, onDismiss: () -> Unit) {
             modifier = Modifier.padding(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text("✅ Done!", color = Color(0xFF22C55E), fontWeight = FontWeight.Bold)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                Text("✅ Done!", color = Color(0xFF22C55E), fontWeight = FontWeight.Bold)
+                if (reason != null) {
+                    Spacer(Modifier.width(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha=0.1f))
+                            .clickable { showReason = !showReason }
+                            .padding(4.dp)
+                    ) {
+                        Text("❓", fontSize = 12.sp)
+                    }
+                }
+            }
+            if (showReason && reason != null) {
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = "Reason: $reason",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color(0xFFEAB308),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+            }
             if (preview.isNotBlank()) {
                 Spacer(Modifier.height(4.dp))
                 Text(
@@ -432,24 +507,26 @@ private fun SmartReplyMenuBubble(
     onDismiss: () -> Unit
 ) {
     Card(
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFF172026)),
         elevation = CardDefaults.cardElevation(8.dp),
     ) {
         Column(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier
+                .padding(12.dp)
+                .heightIn(max = 240.dp)
+                .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Text("Auto-Reply options", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.6f))
             Spacer(Modifier.height(4.dp))
-            val tones = listOf(
-                Triple(EchoTone.PROFESSIONAL, "👍", "Accept"),
-                Triple(EchoTone.EDGY, "👎", "Decline"),
-                Triple(EchoTone.FRIENDLY, "🤔", "Clarify")
-            )
-            tones.forEach { (tone, emoji, label) ->
-                ToneButton(emoji = emoji, label = label, onClick = { onReplySelected(tone) })
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                ToneButton(emoji = "👍", label = "Accept", onClick = { onReplySelected(EchoTone.PROFESSIONAL) }, modifier = Modifier.weight(1f))
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                ToneButton(emoji = "👎", label = "Decline", onClick = { onReplySelected(EchoTone.EDGY) }, modifier = Modifier.weight(1f))
+                ToneButton(emoji = "🤔", label = "Clarify", onClick = { onReplySelected(EchoTone.FRIENDLY) }, modifier = Modifier.weight(1f))
             }
             Spacer(Modifier.height(4.dp))
             Text(

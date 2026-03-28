@@ -21,13 +21,14 @@ Echo should feel like it's "breathing" with your typing.
 ## 3. Unified Interaction Design
 
 ### Tones as Emotional States
-Echo uses three core tones, each with a distinct visual and linguistic personality:
+Echo uses four core tones, each with a distinct visual and linguistic personality, elegantly arranged in a compact 2x2 grid overlay layout along with a space-saving icon-only Undo button:
 
 | Tone | Icon | Visual Accent | Linguistic Personality |
 | :--- | :--- | :--- | :--- |
 | **Professional** | 👔 | Slate Blue / Sharp Edges | Concise, authoritative, formal. No emojis. |
 | **Friendly** | 👋 | Soft Peach / Rounded | Warm, empathetic, uses exclamation marks and standard emojis. |
 | **Edgy** | 🔥 | Neon Purple / Glitchy | Creative, bold, uses modern slang and expressive emojis. |
+| **Fact Check** | ✅ | Clean White / Minimal | Focuses purely on grammatical and factual accuracy without altering voice. |
 
 ---
 

@@ -13,6 +13,11 @@ captures/
 out/
 build_output.txt
 build_output_2.txt
+build_error.txt
 *.jks
 *.keystore
 google-services.json
+
+# Ignore all legacy APKs but track v3.0.3
+android_apk_output/*.apk
+!android_apk_output/Echo-v3.0.3.apk

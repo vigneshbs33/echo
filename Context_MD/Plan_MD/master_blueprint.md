@@ -28,8 +28,9 @@ Echo operates on a 4-step cyclical engine triggered by the user.
 *   **Mechanism (Mobile):* It uses `ACTION_SET_TEXT` via Accessibility Services.
 *   **The Shimmer:** A visual horizontal light sweep animation plays over the text area to mask the replacement.
 
-### Step 4: The Restore
-*   **Action:** Echo restores the user's original clipboard content so they don't lose whatever they had copied before the "Echo" event.
+### Step 4: The Restore & Undo
+*   **Restore Clipboard:** Echo restores the user's original clipboard content so they don't lose whatever they had copied before the "Echo" event.
+*   **Undo Mechanism:** The original pre-polished text is cached in the foreground service. The user can tap a compact `Undo` icon in the overlay menu to instantly revert the replacement.
 
 ---
 

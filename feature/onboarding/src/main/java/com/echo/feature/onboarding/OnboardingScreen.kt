@@ -137,13 +137,13 @@ internal fun OnboardingScreen(
 @Composable
 private fun HeroSection(versionName: String) {
     Column(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Box(
             modifier = Modifier
-                .size(96.dp)
+                .size(72.dp)
                 .background(
                     color = Color.Black,
                     shape = CircleShape,
@@ -153,20 +153,19 @@ private fun HeroSection(versionName: String) {
             androidx.compose.foundation.Image(
                 painter = androidx.compose.ui.res.painterResource(id = com.echo.core.designsystem.R.drawable.ic_echo_logo),
                 contentDescription = "Echo Logo",
-                modifier = Modifier.size(56.dp)
+                modifier = Modifier.size(40.dp)
             )
         }
         Text(
             text = "Echo",
-            style = MaterialTheme.typography.displayMedium,
-            fontWeight = FontWeight.ExtraBold,
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
         )
         Text(
-            text = "Type messy.\nLook like a genius.",
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.70f),
+            text = "Type messy. Look like a genius.",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.60f),
             textAlign = TextAlign.Center,
-            lineHeight = 28.sp
         )
         
         val context = LocalContext.current
@@ -343,7 +342,7 @@ private fun LaunchCard(
                         textAlign = TextAlign.Center,
                     )
                     Text(
-                        text = "Tap the floating \"E\" bubble in any app, pick a tone, and watch your text transform.",
+                        text = "Tap the floating \"Bat\" bubble in any app, pick a tone, and watch your text transform.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                         textAlign = TextAlign.Center,
@@ -513,18 +512,19 @@ private fun EchoCard(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Card(
-        shape = RoundedCornerShape(28.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+            containerColor = MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.padding(24.dp)) {
+        Column(modifier = Modifier.padding(20.dp)) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.primary
             )
             Spacer(Modifier.height(16.dp))

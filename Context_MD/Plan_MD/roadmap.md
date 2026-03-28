@@ -42,3 +42,12 @@
 - [ ] **Onboarding Flow:** Implement the "Aha!" sandbox and OpenAI setup guide.
 - [ ] **Performance Pass:** Ensure < 50MB RAM usage on Windows and < 20MB on Android.
 - [ ] **Packaging:** Create installers (.msi/.exe) and the Android APK/Bundle.
+
+---
+
+## Phase 6: v3.0.x Polish & Precision (Completed)
+**Goal:** Enhance UI real-estate and text accuracy.
+- [x] Implement **"Instant Undo"** mechanism caching original text.
+- [x] Add **"Fact Check"** tone for factual/grammatical correction without style alteration.
+- [x] Redesign floating overlay into a compact 2x2 grid.
+- [x] Professionalize the main app OnboardingScreen.

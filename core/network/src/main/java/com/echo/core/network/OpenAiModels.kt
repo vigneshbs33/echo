@@ -7,6 +7,11 @@ data class OpenAiRequest(
     @SerializedName("messages") val messages: List<OpenAiMessage>,
     @SerializedName("max_tokens") val maxTokens: Int = 1024,
     @SerializedName("temperature") val temperature: Double = 0.7,
+    @SerializedName("response_format") val responseFormat: ResponseFormat? = null,
+)
+
+data class ResponseFormat(
+    @SerializedName("type") val type: String = "json_object"
 )
 
 data class OpenAiMessage(
