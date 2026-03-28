@@ -42,7 +42,15 @@ Echo is a premium Android-first writing assistant providing a "ghost layer" that
 2. Open in Android Studio.
 3. Add your OpenAI API key in the app's onboarding screen (it stays on your device!).
 4. Grant **Accessibility** and **Overlay** permissions.
+<<<<<<< HEAD
 5. Start typing messy, tap the "Bat" bubble, and look like a genius.
+=======
+<<<<<<< HEAD
+5. Start typing messy, tap the "Bat" bubble, and look like a genius.
+=======
+5. Start typing messy, tap the "E" bubble, and look like a genius.
+>>>>>>> 74d5d23028cb92f04290663c12f0d31170a3b297
+>>>>>>> a62d3498af0d90c47a89822d0d0e83fecf7b4435
 
 ## 📝 Documentation
 For deeper technical dives, see the `Context_MD/` directory:
