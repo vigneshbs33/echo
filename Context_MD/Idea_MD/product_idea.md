@@ -16,7 +16,8 @@ Unlike Grammarly or traditional editors that "nag" users with red underlines whi
 ## 3. Product Pillars
 *   **The Echo Pulse:** A subtle, breathing indicator that lives near your cursor, signaling that Echo is ready to assist without being a distraction.
 *   **The Echo Shimmer:** A signature horizontal light sweep animation that plays as messy text is replaced by polished prose.
-*   **Tone Personalities:** Effortless switching between **Professional (👔)**, **Friendly (👋)**, and **Edgy (🔥)** modes.
+*   **Tone Personalities:** Effortless switching between **Professional (👔)**, **Friendly (👋)**, **Edgy (🔥)**, and **Fact Check (✅)** modes.
+*   **Instant Undo:** A compact mechanism to instantly revert the text replacement if the user changes their mind.
 *   **Own Your AI:** A privacy-first model where users provide their own OpenAI API key, ensuring data sovereignty and low cost.
 *   **Smart Context:** Automatic reply generation based on clipboard content, reducing cognitive load for incoming messages.
 

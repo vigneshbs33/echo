@@ -16,5 +16,13 @@ enum class EchoTone(
         title = "Edgy",
         summary = "Bold, punchy, creative, and energetic.",
     ),
+    FACT_CHECK(
+        title = "Fact Check",
+        summary = "Ensures facts, spelling, and grammar are 100% correct.",
+    ),
+    PROMOTION(
+        title = "Promotion",
+        summary = "Clear, engaging marketing message.",
+    )
 }
 

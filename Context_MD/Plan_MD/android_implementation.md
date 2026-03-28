@@ -17,12 +17,13 @@ The **Accessibility API** is the primary engine for Echo on Android.
 ### B. The "Echo Bubble" (UI Overlay)
 To minimize screen real-estate, Echo uses a **Floating Bubble Overlay**.
 *   **The UI:** A tiny, semi-transparent circle (Messenger Chat Head style) that snaps to the screen edges.
-*   **The Menu:** Tapping the bubble expands a small, elegant radial menu with three tone icons: 👔 (Professional), 👋 (Friendly), 🔥 (Edgy).
-*   **Technology:** Implemented using the `WindowManager` API with `TYPE_APPLICATION_OVERLAY`.
+*   **The Menu:** Tapping the bubble expands a compact 2x2 grid menu containing tone icons (👔, 👋, 🔥, ✅).
+*   **Compact Undo:** A space-saving, icon-only Undo button sits in the menu to quickly revert text replacements.
+*   **Technology:** Implemented using the `WindowManager` API with Jetpack Compose inside `TYPE_APPLICATION_OVERLAY`.
 
 ### C. The "Smart Context" (Clipboard Monitor)
-*   Echo registers a `ClipboardManager.OnPrimaryClipChangedListener`.
-*   When text (> 10 words) is copied, Echo shows a small "Reply with Echo" toast at the bottom.
+*   Echo registers a clipboard listener through a detached `GhostClipboardActivity`. This prevents the main app from accidentally popping to the foreground.
+*   When text is copied, Echo shows a small "Reply" toast.
 *   Tapping the toast opens an overlay with 3 context-aware reply suggestions.
 
 ---

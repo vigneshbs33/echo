@@ -12,8 +12,8 @@ android {
         applicationId = "com.echo.app"
         minSdk = 29
         targetSdk = 35
-        versionCode = 6
-        versionName = "3.0.0"
+        versionCode = 9
+        versionName = "3.0.3"
 
         vectorDrawables {
             useSupportLibrary = true
@@ -23,7 +23,8 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",

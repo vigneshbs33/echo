@@ -20,8 +20,14 @@ class EchoPromptFactory {
             systemPrompt = buildString {
                 appendLine("You are Echo, a smart writing assistant that makes people's writing look effortless.")
                 appendLine(toneInstruction(tone))
-                appendLine(globalConstraints)
-                appendLine(length.instruction)
+                if (tone != EchoTone.FACT_CHECK) {
+                    if (tone == EchoTone.PROMOTION) {
+                        appendLine(globalConstraints.replace("Never use markdown formatting (no **, no #, no bullet points unless the original had them).", ""))
+                    } else {
+                        appendLine(globalConstraints)
+                    }
+                    appendLine(length.instruction)
+                }
                 if (contextLine.isNotBlank()) appendLine(contextLine)
                 if (customInstruction.isNotBlank()) {
                     appendLine("Here is an example of the user's natural writing style in this tone: '$customInstruction'. Analyze their vocabulary, pacing, and sentence structure, and strictly match this vibe.")
@@ -43,6 +49,10 @@ class EchoPromptFactory {
                 "Write a polite but firm declining response to the following message. Keep it real and direct."
             EchoTone.FRIENDLY ->
                 "Write a curious, warm response asking for more detail about the following message."
+            EchoTone.FACT_CHECK ->
+                "Write a concise, factually accurate response to the following message."
+            EchoTone.PROMOTION ->
+                "Write an engaging, positive marketing-focused response to the following message."
         }
         val customLine = if (customInstruction.isNotBlank()) "\nHere is an example of the user's natural writing style: '$customInstruction'. Analyze their vocabulary, pacing, and sentence structure, and strictly match this vibe." else ""
         return PromptBundle(
@@ -72,6 +82,25 @@ class EchoPromptFactory {
             """Rewrite the input to sound bold, punchy, and full of personality.
                High energy. Modern. Direct. The kind of message that makes people stop scrolling.
                Don't be edgy for shock value — be compelling and real."""
+
+        EchoTone.FACT_CHECK ->
+            """Ensure all facts are 100% accurate. Correct any spelling or grammar mistakes.
+               DO NOT change the user's personal tone or style. If they made a factual error (e.g. 'Sun is a planet'), correct it (e.g. 'Sun is a star').
+               If the text is already 100% factually correct and has no spelling or grammar errors, output: {"all_good": true, "corrected_text": "", "reason": ""}.
+               Otherwise, output in valid JSON with exactly three keys:
+               "all_good": false,
+               "corrected_text": the exact corrected text,
+               "reason": a short concise explanation of what you fixed and why."""
+
+        EchoTone.PROMOTION ->
+            """Transform the following text into a clear, engaging marketing message.
+               Fix grammar and spelling. Make it sound professional but friendly.
+               Keep it simple and easy to understand.
+               Add attractive formatting (short lines, spacing) and use bullet points when appropriate.
+               Use relevant emojis (not too many).
+               Highlight key offers (like discounts, bonuses, free items).
+               Make it motivating and action-oriented.
+               Output format: Title line (optional but catchy), short paragraphs or bullet points."""
     }
 
     private companion object {

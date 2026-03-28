@@ -21,6 +21,7 @@ class EchoForegroundService : Service() {
     private lateinit var bubbleController: EchoBubbleController
     private lateinit var vault: ApiKeyVault
     private lateinit var settingsVault: SettingsVault
+    private var lastOriginalText: String? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -45,6 +46,7 @@ class EchoForegroundService : Service() {
             context = this,
             onToneSelected = { tone -> handlePolish(tone) },
             onReplySelected = { tone -> handleSmartReplyFromClipboard(tone) },
+            onUndoSelected = { handleUndo() }
         )
     }
 
@@ -129,10 +131,22 @@ class EchoForegroundService : Service() {
 
             runCatching {
                 val customInstruction = settingsVault.getCustomInstruction(tone.name)
-                val polished = OpenAiRepository(apiKey).rewrite(rawText, tone, customInstruction)
+                val result = OpenAiRepository(apiKey).rewrite(rawText, tone, customInstruction)
+
+                if (result.allGood) {
+                    // Nothing to fix — don't touch the text
+                    launch(Dispatchers.Main) {
+                        bubbleController.setDone("You're all good! No corrections needed.", null)
+                    }
+                    return@runCatching
+                }
+
+                val polished = result.text
+                lastOriginalText = rawText
+                bubbleController.setCanUndo(true)
                 val replaced = service.replaceText(polished)
                 launch(Dispatchers.Main) {
-                    if (replaced) bubbleController.setDone(polished)
+                    if (replaced) bubbleController.setDone(polished, result.reason)
                     else setError("Could not replace text in this app.")
                 }
             }.onFailure { e ->
@@ -176,7 +190,10 @@ class EchoForegroundService : Service() {
             }
 
             runCatching {
+                val originalTextInField = service.captureText() ?: "" // Capture existing text before pasting reply
                 val reply = OpenAiRepository(apiKey).generateReply(contextText, tone)
+                lastOriginalText = originalTextInField
+                bubbleController.setCanUndo(true)
                 val replaced = service.replaceText(reply)
                 launch(Dispatchers.Main) {
                     if (replaced) bubbleController.setDone(reply)
@@ -186,6 +203,31 @@ class EchoForegroundService : Service() {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 Log.e(TAG, "Smart reply failed", e)
                 setError(friendlyError(e))
+            }
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // Undo: restore previous text
+    // ──────────────────────────────────────────────────────────────────────
+    private fun handleUndo() {
+        Log.d(TAG, "handleUndo")
+        scope.launch {
+            val original = lastOriginalText ?: return@launch
+            val service = EchoAccessibilityService.instance
+            if (service == null) {
+                setError("Accessibility service not active.")
+                return@launch
+            }
+            val replaced = service.replaceText(original)
+            launch(Dispatchers.Main) {
+                if (replaced) {
+                    lastOriginalText = null
+                    bubbleController.setCanUndo(false)
+                    bubbleController.resetToIdle()
+                } else {
+                    setError("Could not undo in this app.")
+                }
             }
         }
     }

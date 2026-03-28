@@ -4,6 +4,12 @@ import com.echo.core.model.EchoTone
 import com.echo.core.prompt.EchoPromptFactory
 import com.echo.core.prompt.RewriteLength
 
+data class PolishResult(
+    val text: String,
+    val reason: String? = null,
+    val allGood: Boolean = false
+)
+
 class OpenAiRepository(
     private val apiKey: String,
     private val promptFactory: EchoPromptFactory = EchoPromptFactory(),
@@ -20,7 +26,7 @@ class OpenAiRepository(
         customInstruction: String = "",
         length: RewriteLength = RewriteLength.SIMILAR,
         appContext: String? = null,
-    ): String {
+    ): PolishResult {
         val prompt = promptFactory.buildRewritePrompt(
             input = text,
             tone = tone,
@@ -35,6 +41,7 @@ class OpenAiRepository(
                 OpenAiMessage(role = "system", content = prompt.systemPrompt),
                 OpenAiMessage(role = "user", content = prompt.userPrompt),
             ),
+            responseFormat = if (tone == EchoTone.FACT_CHECK) ResponseFormat("json_object") else null
         )
 
         val response = api.createChatCompletion(request)
@@ -49,8 +56,29 @@ class OpenAiRepository(
             throw RuntimeException("OpenAI API error: ${apiError.message}")
         }
 
-        return body?.choices?.firstOrNull()?.message?.content?.trim()
+        val content = body?.choices?.firstOrNull()?.message?.content?.trim()
             ?: throw RuntimeException("Empty response from OpenAI")
+
+        if (tone == EchoTone.FACT_CHECK) {
+            return try {
+                val json = org.json.JSONObject(content)
+                val isAllGood = json.optBoolean("all_good", false)
+                if (isAllGood) {
+                    PolishResult(text = "", reason = null, allGood = true)
+                } else {
+                    val correctedField = json.optString("corrected_text", "")
+                    val reasonField = json.optString("reason", "")
+                    PolishResult(
+                        text = if (correctedField.isNotBlank()) correctedField else content,
+                        reason = if (reasonField.isNotBlank()) reasonField else null,
+                        allGood = false
+                    )
+                }
+            } catch (e: Exception) {
+                PolishResult(content, null)
+            }
+        }
+        return PolishResult(content, null)
     }
 
     suspend fun generateReply(
