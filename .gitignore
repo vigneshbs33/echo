@@ -26,3 +26,12 @@ android_apk_output/*.apk
 .vscode/
 .env
 *.aab
+
+# Secrets and local signing config
+keystore.properties
+secrets.properties
+*.pem
+*.p12
+
+# Logs
+*.log

@@ -24,6 +24,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Column
 
+/**
+ * The only launcher activity. Hosts the Compose onboarding and settings flow
+ * (API key, permissions, per tone writing samples) and shows the previous
+ * crash log, if one was saved by [EchoApplication].
+ */
 class MainActivity : ComponentActivity() {
 
     private lateinit var apiKeyVault: ApiKeyVault

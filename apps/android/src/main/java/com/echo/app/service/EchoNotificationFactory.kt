@@ -8,6 +8,10 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 
+/**
+ * Builds the persistent notification required by the foreground service, including the
+ * Pause / Resume action that toggles text capture on and off.
+ */
 object EchoNotificationFactory {
     const val CHANNEL_ID = "echo_background_service"
     const val NOTIFICATION_ID = 7

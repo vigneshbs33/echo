@@ -15,6 +15,16 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 
+/**
+ * Foreground service that owns the floating bubble and runs every Echo action.
+ *
+ * - Polish: capture the focused text, rewrite it with [OpenAiRepository] in the chosen
+ *   tone (plus the user's saved writing sample for that tone), then replace it in place.
+ * - Smart Reply: read the clipboard through [com.echo.app.clipboard.GhostClipboardActivity],
+ *   generate a reply and insert it into the focused field.
+ * - Undo: restore the text that was in the field before the last rewrite.
+ * - Pause: [ACTION_TOGGLE_INCOGNITO] hides the bubble and blocks all text capture.
+ */
 class EchoForegroundService : Service() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)

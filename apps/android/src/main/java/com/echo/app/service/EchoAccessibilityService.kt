@@ -6,6 +6,17 @@ import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 
+/**
+ * Accessibility Service that gives Echo read and write access to the focused text field.
+ *
+ * It does no work on accessibility events. Text is only read when the user taps a tone
+ * in the bubble, through [captureText], and written back through [replaceText] using
+ * `ACTION_SET_TEXT`. Password fields and non editable nodes are ignored, and nothing is
+ * read while Echo is paused from its notification.
+ *
+ * The running instance is exposed through [instance] as a weak reference so the
+ * foreground service can call it.
+ */
 class EchoAccessibilityService : AccessibilityService() {
 
     override fun onServiceConnected() {

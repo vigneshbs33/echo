@@ -88,6 +88,13 @@ sealed class BubbleUiState {
     object SmartReplyMenu : BubbleUiState()
 }
 
+/**
+ * Draws and manages the floating Echo bubble.
+ *
+ * The bubble is a Compose view attached to a `WindowManager` overlay. It snaps to the
+ * screen edge, opens the tone menu, the Smart Reply menu and the Undo action, and shows
+ * loading, done and error states. All callbacks are handled by [EchoForegroundService].
+ */
 class EchoBubbleController(
     private val context: Context,
     private val onToneSelected: (EchoTone) -> Unit,

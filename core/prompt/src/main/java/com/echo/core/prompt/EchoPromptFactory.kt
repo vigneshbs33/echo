@@ -2,6 +2,10 @@ package com.echo.core.prompt
 
 import com.echo.core.model.EchoTone
 
+/**
+ * Builds the system and user prompts for rewrites and replies from the tone, the
+ * requested length, an optional app context and the user's own writing sample for that tone.
+ */
 class EchoPromptFactory {
 
     fun buildRewritePrompt(

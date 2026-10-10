@@ -1,5 +1,9 @@
 package com.echo.core.model
 
+/**
+ * The writing tones offered in the bubble. [title] is the label shown in the UI and
+ * [summary] is a one line description of the tone.
+ */
 enum class EchoTone(
     val title: String,
     val summary: String,

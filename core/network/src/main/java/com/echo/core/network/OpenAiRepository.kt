@@ -4,12 +4,22 @@ import com.echo.core.model.EchoTone
 import com.echo.core.prompt.EchoPromptFactory
 import com.echo.core.prompt.RewriteLength
 
+/**
+ * Result of a rewrite. [allGood] is true when the model reported that no change was
+ * needed (Fact Check tone), in which case [text] is empty and the field is left as is.
+ */
 data class PolishResult(
     val text: String,
     val reason: String? = null,
     val allGood: Boolean = false
 )
 
+/**
+ * Talks to the OpenAI Chat Completions API with the user's own key.
+ *
+ * [rewrite] polishes text in a tone. [generateReply] writes a reply to a copied message.
+ * Both use `gpt-4o-mini` and throw on network or API errors.
+ */
 class OpenAiRepository(
     private val apiKey: String,
     private val promptFactory: EchoPromptFactory = EchoPromptFactory(),
