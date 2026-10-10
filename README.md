@@ -1,52 +1,81 @@
-# Echo: The "Write Fast, Fix Later" AI Companion 🚀
+# Echo
 
-<div align="center">
-  <a href="https://raw.githubusercontent.com/vigneshbs33/echo/main/android_apk_output/Echo-v3.0.3.apk">
-    <img src="https://img.shields.io/badge/Download_APK_for_Android-100000?style=for-the-badge&logo=android&logoColor=white&labelColor=2C1E4A&color=00C853" alt="Download APK" />
-  </a>
-  <p/>
-  <b>100% Open Source & Safe</b> 🛡️ — <i>Review the code, build it yourself, or download the pre-compiled APK directly. No data tracking, no ads.</i>
-</div>
-<br/>
+Echo is an Android app that cleans up text in any app. You type a rough draft in WhatsApp, Gmail, Slack or any other text field, tap a small floating bubble, pick a tone, and Echo replaces your draft with a polished version in the same field. One tap undoes it.
 
-Echo is a premium Android-first writing assistant providing a "ghost layer" that sits between the OS and any application. It eliminates the friction of real-time editing by allowing users to type messy drafts and instantly transform them into polished, professional, or creative prose using AI.
+It works system wide, without a custom keyboard, by using an Android Accessibility Service to read and write the focused text field.
 
-## ✨ Core Features
-- **Ghost Layer (Accessibility Service)**: Captures text from any focused field and replaces it instantly via the Accessibility API.
-- **Floating Overlay Bubble**: A non-intrusive, snap-to-edge UI for quick access to polishing features.
-- **Tone Personalities**: Choose between **Professional (👔)**, **Friendly (👋)**, **Edgy (🔥)**, and **Fact Check (✅)** modes.
-- **Instant Undo**: Change your mind? Revert any AI replacement instantly with a compact undo button.
-- **Smart Context**: Detects incoming messages in your clipboard and suggests context-aware replies.
-- **Privacy First**: All processing happens direct-to-OpenAI using **your own API Key**, which is encrypted locally on-device.
+## What it does
 
-## 📱 What's New in v3.0.3
-- **Promotion Tone**: A brand new ✨ Promo tone (📣) to instantly craft engaging marketing and direct-response messages.
-- **Landscape Polishing**: The floating bubble menu now intelligently scroll-locks so you'll never lose the Cancel button when rotating your screen.
+- **Polish in place.** Reads the text in the focused field (or just the selected part), rewrites it with an LLM, and writes it back into the same field.
+- **Tones.** Professional, Friendly, Edgy, Fact Check (fixes spelling, grammar and facts while keeping your own style) and Promo. Each tone can carry your own custom instruction.
+- **Undo.** Restores your original text after any rewrite.
+- **Smart Reply.** Copy a message you received, tap into your reply box, tap Smart Reply, and Echo writes a reply in the tone you pick straight into that box.
+- **Leaves good text alone.** If the text needs no changes, Echo says so and does not touch the field. When it does change something, it shows a short reason.
+- **Skips password fields**, and a Pause button in its notification stops all capture until you resume.
 
-## 📱 What's New in v3.0.2
-- **Compact UI**: The floating menu now uses a sleek 2x2 grid to save screen real-estate.
-- **Icon-Only Undo**: A miniaturized ↩️ button replaces the old horizontal bar for a cleaner overlay.
-- **Professional App Redesign**: The main onboarding and status screens have been redesigned with a modern, clean, and professional aesthetic.
-- **Fact Check Mode**: A new tone that fixes errors without changing your authentic writing style.
+## Try it in 3 steps
 
-## 🏗️ Project Structure
-- `apps/android`: Primary Android application and system services.
-- `feature/onboarding`: Jetpack Compose-based setup and status UI.
-- `core/designsystem`: Premium Material 3 theme and UI tokens.
-- `core/prompt`: Advanced persona-based prompt engineering.
-- `core/network`: Direct OpenAI integration (gpt-4o-mini).
-- `core/model`: Shared entity and domain models.
+1. Download [`android_apk_output/Echo-v3.0.3.apk`](android_apk_output/Echo-v3.0.3.apk) to an Android 10+ phone and install it (allow installs from your browser or file manager when asked).
+2. Open Echo, paste your OpenAI API key, and grant the two permissions it asks for: **Display over other apps** and **Accessibility** (Settings > Accessibility > Echo > On).
+3. Open any app, type something messy in a text field, tap the Echo bubble, and pick a tone.
 
-## 🚀 Getting Started
-1. Clone the repository: `git clone https://github.com/vigneshbs33/echo.git`
-2. Open in Android Studio.
-3. Add your OpenAI API key in the app's onboarding screen (it stays on your device!).
-4. Grant **Accessibility** and **Overlay** permissions.
-5. Start typing messy, tap the "Bat" bubble, and look like a genius.
+## How it works
 
-## 📝 Documentation
-For deeper technical dives, see the `Context_MD/` directory:
-- [Product Idea](Context_MD/Idea_MD/product_idea.md)
-- [Architecture Blueprint](Context_MD/Plan_MD/master_blueprint.md)
-- [Android Implementation](Context_MD/Plan_MD/android_implementation.md)
+```
+Floating bubble (overlay, Jetpack Compose)
+        |  tap tone
+        v
+EchoForegroundService  --->  EchoAccessibilityService.captureText()
+        |                        finds the focused editable node, reads text or selection
+        v
+OpenAiRepository (Retrofit, gpt-4o-mini) with a tone prompt from core/prompt
+        |  returns JSON: polished text + short reason, or "all good"
+        v
+EchoAccessibilityService.replaceText()  ->  ACTION_SET_TEXT on the same node
+```
 
+- `EchoAccessibilityService`: reads the focused, editable, non-password field and replaces only the selected range when there is a selection. It does nothing on ordinary accessibility events, so it costs no battery while idle.
+- `EchoBubbleController`: the snap-to-edge overlay bubble and tone menu, drawn with Compose inside a `WindowManager` overlay.
+- `EchoForegroundService`: keeps the bubble alive, runs the capture, rewrite and replace flow, and holds the undo state.
+- `GhostClipboardActivity`: an invisible activity that takes window focus for a moment, because Android 10+ only lets the focused app read the clipboard. This is what makes Smart Reply possible.
+- `ApiKeyVault`: stores the API key with `EncryptedSharedPreferences` (Android Keystore, AES-256).
+
+## Project layout
+
+| Module | What is in it |
+|---|---|
+| `apps/android` | App, accessibility service, foreground service, overlay bubble, vaults |
+| `feature/onboarding` | Setup and status screens (Compose) |
+| `core/network` | OpenAI client and models |
+| `core/prompt` | Tone prompts for rewrite and reply |
+| `core/model` | Shared types such as `EchoTone` |
+| `core/designsystem` | Theme |
+| `Context_MD` | Early product and design notes |
+
+## Privacy
+
+- There is no Echo server. Text goes straight from the phone to the OpenAI API with your own key, only when you tap a tone.
+- The key is encrypted on the device and never leaves it except as the auth header of that request.
+- Echo reads only the field in focus, only on a tap. It never reads password fields, and Pause turns capture off.
+
+## Build from source
+
+Requirements: Android Studio (or the Android SDK with platform 35) and JDK 17.
+
+```
+git clone https://github.com/vigneshbs33/echo.git
+cd echo
+cp local.properties.example local.properties   # set sdk.dir to your Android SDK
+./gradlew :apps:android:assembleDebug
+```
+
+The APK is written to `apps/android/build/outputs/apk/debug/`.
+
+## Limits
+
+- Some apps draw their own text views and ignore `ACTION_SET_TEXT`. Echo then shows "Could not replace text in this app" instead of failing silently.
+- Rewriting needs a network connection and an OpenAI API key.
+
+## License
+
+MIT, see [LICENSE](LICENSE).
