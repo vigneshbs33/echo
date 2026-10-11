@@ -6,6 +6,8 @@
 
 # Echo
 
+[![CI](https://github.com/vigneshbs33/echo/actions/workflows/ci.yml/badge.svg)](https://github.com/vigneshbs33/echo/actions/workflows/ci.yml)
+
 **Polished text inside any Android app. Type a messy draft, tap a bubble, and it is rewritten right where you typed it.**
 
 Echo is a floating writing assistant for Android. It works in WhatsApp, Gmail, Slack, notes or any other app with a text box, without a custom keyboard. Under the hood an Accessibility Service reads the focused field when you tap, an LLM rewrites the text in the tone you pick, and Echo writes the result back into the same field. One tap undoes it.
@@ -16,43 +18,150 @@ Echo is a floating writing assistant for Android. It works in WhatsApp, Gmail, S
 - **Five tones.** Professional, Friendly, Edgy, Promo and Fact Check, from a small menu on the bubble.
 - **Fact Check that respects your style.** Fixes spelling, grammar and facts without changing your voice. If nothing needs fixing, Echo says so and leaves the field alone. When it does fix something, it shows a short reason.
 - **Your own voice per tone.** Save a sample of how you write in a tone, and Echo uses it as a style example for that tone.
-- **Smart Reply.** Copy a message you received, tap into your reply box, open Smart Reply on the bubble, and pick Accept, Decline or Clarify. Echo writes the reply straight into that box.
-- **One tap Undo.** Restores what was in the field before the last rewrite or reply.
+- **Smart Reply.** Copy a message you received, tap into your reply box, open Smart Reply on the bubble, and pick Accept, Decline or Clarify. Echo writes the reply straight into that box, in your voice from your Smart Reply writing sample.
+- **One tap Undo.** Restores the whole field as it was before the last rewrite or reply, including the text around a selection.
 - **Pause.** A Pause button in the notification hides the bubble and stops all text capture until you resume.
 - **Clear errors.** Missing key, invalid key, rate limits, no network, or an app that refuses text changes each show a plain message on the bubble.
 
 ## How it works
 
 1. You tap a tone on the floating bubble.
-2. `EchoAccessibilityService` finds the focused, editable, non password field and reads its text (or the current selection).
-3. `OpenAiRepository` sends it to the OpenAI Chat Completions API (`gpt-4o-mini`) with a tone prompt built by `EchoPromptFactory`.
-4. The rewritten text is written back into the same field with `ACTION_SET_TEXT`. The original is kept in memory so Undo can put it back.
+2. `EchoForegroundService` hands the action to `EchoEditor`, which reads the focused field through a `TextFieldGateway` (on Android, the accessibility service). It works on the selection, or on the whole field when nothing is selected.
+3. A `WritingEngine` rewrites the text. The default, `OpenAiWritingEngine`, calls an OpenAI compatible Chat Completions API with a tone prompt from `EchoPromptFactory` and your writing sample for that tone.
+4. The editor writes the result back into the same field and keeps a snapshot of the whole field, with its selection, so Undo can restore it exactly.
 
 ## Architecture
 
+Echo has three layers. The middle one, `core/domain`, is plain Kotlin with no Android code: it holds the editing logic and the interfaces every other part plugs into. That is what makes the parts swappable and the logic testable on the JVM.
+
 ```mermaid
-flowchart LR
-    U([You tap a tone]) --> B[EchoBubbleController<br/>Compose overlay]
-    B --> S[EchoForegroundService<br/>runs the flow, holds Undo]
-    S -- captureText --> A[EchoAccessibilityService]
-    A -- focused field text --> S
-    S -- text + tone prompt --> R[OpenAiRepository<br/>core/network]
-    P[EchoPromptFactory<br/>core/prompt] --> R
-    R -- HTTPS, your key --> O[(OpenAI API)]
-    O -- rewritten text --> S
-    S -- replaceText --> A
-    A -- ACTION_SET_TEXT --> F[Same text field]
-    K[ApiKeyVault<br/>EncryptedSharedPreferences] --> S
-    G[GhostClipboardActivity<br/>Smart Reply clipboard read] --> S
+flowchart TB
+    subgraph UI["UI layer: apps/android, feature/onboarding"]
+        Bubble["EchoBubbleController<br/>Compose overlay"]
+        Service["EchoForegroundService"]
+        Onboarding["Onboarding screen + ViewModel"]
+    end
+    subgraph Domain["Domain layer: core/domain, pure Kotlin"]
+        Editor["EchoEditor<br/>Polish, Smart Reply, Undo"]
+        Field[["TextFieldGateway"]]
+        Engine[["WritingEngine"]]
+        Storage[["ApiKeyStorage, SettingsStorage"]]
+    end
+    subgraph Data["Data layer: default implementations"]
+        A11y["AccessibilityTextFieldGateway<br/>EchoAccessibilityService"]
+        OpenAI["OpenAiWritingEngine<br/>core/network + core/prompt"]
+        Vaults["ApiKeyVault, SettingsVault<br/>EncryptedSharedPreferences"]
+    end
+    Container["AppContainer<br/>wires the defaults"]
+
+    Bubble --> Service
+    Service --> Editor
+    Onboarding --> Storage
+    Editor --> Field
+    Editor --> Engine
+    Editor --> Storage
+    A11y -. implements .-> Field
+    OpenAI -. implements .-> Engine
+    Vaults -. implements .-> Storage
+    Container -.-> Editor
 ```
+
+| Module | Layer | What it holds |
+|---|---|---|
+| `core/domain` | Domain | `EchoEditor`, `FieldSnapshot`, and the `TextFieldGateway`, `WritingEngine` and storage interfaces. Pure Kotlin. |
+| `core/model` | Domain | Shared types such as `EchoTone`. Pure Kotlin. |
+| `core/prompt` | Data | Tone prompts for rewrites and replies. Pure Kotlin. |
+| `core/network` | Data | `OpenAiWritingEngine`: Retrofit and OkHttp client, Fact Check JSON parsing. Pure Kotlin. |
+| `core/designsystem` | UI | Compose theme. |
+| `feature/onboarding` | UI | Setup and settings screens. |
+| `apps/android` | UI + Android data | Accessibility service, foreground service, bubble overlay, encrypted vaults and `AppContainer`. |
 
 | Component | Role |
 |---|---|
+| `EchoEditor` | Runs Polish, Smart Reply and Undo against any field and engine. Serialises actions and exposes `canUndo` as a `StateFlow`. Returns a typed `EditResult` instead of throwing. |
+| `AppContainer` | Manual dependency injection. Builds each default once; the one place to swap an implementation. |
 | `EchoAccessibilityService` | Reads and replaces text in the focused field, only when asked. Ignores password fields. Does no work on accessibility events. |
-| `EchoForegroundService` | Keeps the bubble alive and runs Polish, Smart Reply and Undo. |
+| `EchoForegroundService` | Keeps the bubble alive, runs editor actions off the main thread and shows the result on the bubble. |
 | `EchoBubbleController` | The snap to edge bubble, tone menu, Smart Reply menu and status states, drawn with Compose in a `WindowManager` overlay. |
 | `GhostClipboardActivity` | An invisible activity that takes focus for a moment, because Android 10+ only lets the focused app read the clipboard. This is what makes Smart Reply work. |
 | `ApiKeyVault`, `SettingsVault` | Store the API key and your tone samples with `EncryptedSharedPreferences` (Android Keystore, AES-256). |
+
+## Integrate Echo's engine in your app
+
+`core/domain` and `core/network` are plain Kotlin modules, so they work in any Android or JVM app. Add them as Gradle modules, implement `TextFieldGateway` for your text field (see [Extending](#extending)), then:
+
+```kotlin
+val editor = EchoEditor(
+    field = EditTextGateway(editText),
+    engine = OpenAiWritingEngine(
+        config = OpenAiConfig(model = "gpt-4o-mini"),
+        apiKeyProvider = { secureStore.openAiKey() },
+    ),
+    settings = InMemorySettingsStorage(),
+)
+
+scope.launch {
+    when (val result = editor.polish(EchoTone.FRIENDLY)) {
+        is EditResult.Applied -> showPreview(result.preview)
+        is EditResult.Failed -> showError(result.error)
+        else -> Unit
+    }
+}
+```
+
+`editor.reply(EchoTone.PROFESSIONAL, incomingMessage)` writes a Smart Reply into the field, and `editor.undo()` puts the field back as it was.
+
+## Extending
+
+**Use your own model.** Implement `WritingEngine` and return it from `AppContainer.writingEngine`. Nothing else changes.
+
+```kotlin
+class MyEngine(private val llm: MyLlmClient) : WritingEngine {
+    override suspend fun rewrite(request: RewriteRequest): RewriteResult =
+        RewriteResult.Rewritten(llm.complete(tone = request.tone.title, style = request.styleSample, text = request.text))
+
+    override suspend fun reply(request: ReplyRequest): String =
+        llm.reply(request.message, style = request.styleSample)
+}
+```
+
+Throw `WritingEngineException` with the HTTP status for provider errors, and the bubble shows the right message (invalid key, rate limit, network).
+
+**Point the default engine at another server.** Any OpenAI compatible endpoint works. Set it in `gradle.properties`, `~/.gradle/gradle.properties` or on the command line:
+
+```bash
+./gradlew :apps:android:assembleDebug -Pecho.llm.baseUrl=https://llm.example.com/ -Pecho.llm.model=my-model
+```
+
+The values are compiled into `BuildConfig`. API keys never go in Gradle files: users enter their own key in the app and it stays encrypted on the device.
+
+**Use another text surface.** Implement `TextFieldGateway` for a keyboard, an in app editor or a desktop client. For a plain `EditText`:
+
+```kotlin
+class EditTextGateway(private val editText: EditText) : TextFieldGateway {
+    override val isAvailable = true
+    override fun read() = FieldSnapshot(editText.text.toString(), editText.selectionStart, editText.selectionEnd)
+    override fun write(snapshot: FieldSnapshot): Boolean {
+        editText.setText(snapshot.text)
+        snapshot.selectionRange?.let { editText.setSelection(it.first, it.last + 1) }
+        return true
+    }
+}
+```
+
+**Store data elsewhere.** Implement `ApiKeyStorage` or `SettingsStorage` (for example backed by your account system) and return it from `AppContainer`.
+
+**Add a tone.** Add it to `EchoTone`, give it a prompt in `EchoPromptFactory` (the compiler points out every `when` that needs it), and add a button to the tone menu in `EchoBubbleController`.
+
+## Testing and CI
+
+```bash
+./gradlew test                                      # all unit tests, no emulator needed
+ktlint --relative "**/*.kt" "**/*.kts"              # style check (ktlint 1.3.1, rules in .editorconfig)
+./gradlew :apps:android:connectedDebugAndroidTest   # UI test on a device or emulator
+```
+
+Unit tests cover the editor (Polish, Smart Reply, Undo, every error path) with fakes for the field and the engine, field snapshots and selections, writing sample choice, prompt building, Fact Check parsing, the OpenAI engine against `MockWebServer`, and the bubble's error messages. GitHub Actions runs ktlint, the unit tests and a debug build on every push and pull request.
 
 ## Try it
 
@@ -86,19 +195,22 @@ The APK is written to `apps/android/build/outputs/apk/debug/`.
 
 - Kotlin, Jetpack Compose (Material 3)
 - Android Accessibility Service and a `WindowManager` overlay
-- Kotlin Coroutines
+- Kotlin Coroutines and Flow
 - Retrofit, OkHttp and Gson for the OpenAI API
 - AndroidX Security Crypto (`EncryptedSharedPreferences`)
+- JUnit 4, kotlinx-coroutines-test and OkHttp MockWebServer for tests
+- ktlint and GitHub Actions
 - Gradle Kotlin DSL with a version catalog, min SDK 29, target SDK 35
 
 ## Project structure
 
 ```
-apps/android          App, accessibility service, foreground service, bubble overlay, vaults
+apps/android          App: accessibility service, foreground service, bubble overlay, vaults, AppContainer
 feature/onboarding    Setup and settings screens (Compose)
-core/network          OpenAI client, models and repository
-core/prompt           Tone prompts for rewrites and replies
-core/model            Shared types such as EchoTone
+core/domain           EchoEditor and the engine, field and storage interfaces (pure Kotlin)
+core/network          OpenAiWritingEngine, the default engine (pure Kotlin)
+core/prompt           Tone prompts for rewrites and replies (pure Kotlin)
+core/model            Shared types such as EchoTone (pure Kotlin)
 core/designsystem     Theme
 android_apk_output    Ready to install APK
 docs/media            Demo video and preview GIF
@@ -114,7 +226,7 @@ Context_MD            Early product and design notes
 
 - Rewrite length control (shorter, similar, longer) in the bubble. The prompt side already supports it.
 - Pass the current app as context to the prompt. The prompt factory already accepts it.
-- Bring your own model: other providers and on device models.
+- More engines out of the box: other providers and on device models (the `WritingEngine` interface is ready for them).
 - Windows version with a global hotkey (see `Context_MD/Plan_MD/windows_implementation.md`).
 
 ## Contributing
