@@ -4,34 +4,37 @@ import android.app.Service
 import android.content.Intent
 import android.os.IBinder
 import android.util.Log
+import com.echo.app.EchoApplication
+import com.echo.app.clipboard.GhostClipboardActivity
 import com.echo.app.overlay.EchoBubbleController
-import com.echo.app.vault.ApiKeyVault
-import com.echo.app.vault.SettingsVault
+import com.echo.core.domain.EchoEditor
+import com.echo.core.domain.EditError
+import com.echo.core.domain.EditResult
 import com.echo.core.model.EchoTone
-import com.echo.core.network.OpenAiRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Foreground service that owns the floating bubble and runs every Echo action.
  *
- * - Polish: capture the focused text, rewrite it with [OpenAiRepository] in the chosen
- *   tone (plus the user's saved writing sample for that tone), then replace it in place.
- * - Smart Reply: read the clipboard through [com.echo.app.clipboard.GhostClipboardActivity],
- *   generate a reply and insert it into the focused field.
- * - Undo: restore the text that was in the field before the last rewrite.
+ * The service is a thin Android shell: the work itself lives in [EchoEditor] (from
+ * `:core:domain`), which it gets from the app's [com.echo.app.di.AppContainer].
+ *
+ * - Polish: rewrite the selection, or the whole field, in the chosen tone.
+ * - Smart Reply: read the clipboard through [GhostClipboardActivity], write a reply in the
+ *   user's voice and insert it into the focused field.
+ * - Undo: restore the whole field as it was before the last Polish or Smart Reply.
  * - Pause: [ACTION_TOGGLE_INCOGNITO] hides the bubble and blocks all text capture.
  */
 class EchoForegroundService : Service() {
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private lateinit var bubbleController: EchoBubbleController
-    private lateinit var vault: ApiKeyVault
-    private lateinit var settingsVault: SettingsVault
-    private var lastOriginalText: String? = null
+    private lateinit var editor: EchoEditor
 
     override fun onCreate() {
         super.onCreate()
@@ -50,14 +53,16 @@ class EchoForegroundService : Service() {
             )
         }
 
-        vault = ApiKeyVault(applicationContext)
-        settingsVault = SettingsVault(applicationContext)
+        editor = (application as EchoApplication).container.editor
         bubbleController = EchoBubbleController(
             context = this,
             onToneSelected = { tone -> handlePolish(tone) },
             onReplySelected = { tone -> handleSmartReplyFromClipboard(tone) },
-            onUndoSelected = { handleUndo() }
+            onUndoSelected = { handleUndo() },
         )
+        scope.launch {
+            editor.canUndo.collect { bubbleController.setCanUndo(it) }
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -115,150 +120,48 @@ class EchoForegroundService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
-    // ──────────────────────────────────────────────────────────────────────
-    // Polish flow: capture text via Accessibility → AI rewrite → inject back
-    // ──────────────────────────────────────────────────────────────────────
+    // Each bubble action runs on the editor off the main thread, then the result is shown.
+
     private fun handlePolish(tone: EchoTone) {
         Log.d(TAG, "handlePolish: tone=$tone")
-        scope.launch {
-            val apiKey = vault.get()
-            if (apiKey.isNullOrBlank()) {
-                setError("No API key saved. Open Echo to set your key.")
-                return@launch
-            }
-
-            val service = EchoAccessibilityService.instance
-            if (service == null) {
-                setError("Accessibility service not active. Enable it in Settings.")
-                return@launch
-            }
-
-            val rawText = service.captureText()
-            if (rawText.isNullOrBlank()) {
-                setError("No text found. Tap inside a text field first.")
-                return@launch
-            }
-
-            runCatching {
-                val customInstruction = settingsVault.getCustomInstruction(tone.name)
-                val result = OpenAiRepository(apiKey).rewrite(rawText, tone, customInstruction)
-
-                if (result.allGood) {
-                    // Nothing to fix — don't touch the text
-                    launch(Dispatchers.Main) {
-                        bubbleController.setDone("You're all good! No corrections needed.", null)
-                    }
-                    return@runCatching
-                }
-
-                val polished = result.text
-                lastOriginalText = rawText
-                bubbleController.setCanUndo(true)
-                val replaced = service.replaceText(polished)
-                launch(Dispatchers.Main) {
-                    if (replaced) bubbleController.setDone(polished, result.reason)
-                    else setError("Could not replace text in this app.")
-                }
-            }.onFailure { e ->
-                if (e is kotlinx.coroutines.CancellationException) throw e
-                Log.e(TAG, "Polish failed", e)
-                setError(friendlyError(e))
-            }
-        }
+        runAction(BubbleAction.POLISH) { editor.polish(tone) }
     }
 
-    // ──────────────────────────────────────────────────────────────────────
-    // Smart Reply via clipboard: launched by GhostClipboardActivity
-    // ──────────────────────────────────────────────────────────────────────
+    /** Reads the clipboard through [GhostClipboardActivity], which is allowed to on Android 10+. */
     private fun handleSmartReplyFromClipboard(tone: EchoTone) {
-        // Route through GhostClipboardActivity so we can legally read clipboard on Android 10+
-        val intent = android.content.Intent(this, com.echo.app.clipboard.GhostClipboardActivity::class.java).apply {
-            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
+        val intent = Intent(this, GhostClipboardActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
             putExtra(EXTRA_TONE_NAME, tone.name)
         }
         startActivity(intent)
     }
 
-    private fun handleSmartReply(tone: EchoTone, contextText: String) {
-        Log.d(TAG, "handleSmartReply: tone=$tone textLen=${contextText.length}")
-        scope.launch {
-            if (contextText.isBlank()) {
-                setError("Nothing on clipboard. Copy a message first, then try Smart Reply.")
-                return@launch
-            }
-
-            val apiKey = vault.get()
-            if (apiKey.isNullOrBlank()) {
-                setError("No API key saved. Open Echo to set your key.")
-                return@launch
-            }
-
-            val service = EchoAccessibilityService.instance
-            if (service == null) {
-                setError("Accessibility service not active. Enable it in Settings.")
-                return@launch
-            }
-
-            runCatching {
-                val originalTextInField = service.captureText() ?: "" // Capture existing text before pasting reply
-                val reply = OpenAiRepository(apiKey).generateReply(contextText, tone)
-                lastOriginalText = originalTextInField
-                bubbleController.setCanUndo(true)
-                val replaced = service.replaceText(reply)
-                launch(Dispatchers.Main) {
-                    if (replaced) bubbleController.setDone(reply)
-                    else setError("Could not insert reply into this app.")
-                }
-            }.onFailure { e ->
-                if (e is kotlinx.coroutines.CancellationException) throw e
-                Log.e(TAG, "Smart reply failed", e)
-                setError(friendlyError(e))
-            }
-        }
+    private fun handleSmartReply(tone: EchoTone, clipboardText: String) {
+        Log.d(TAG, "handleSmartReply: tone=$tone textLen=${clipboardText.length}")
+        runAction(BubbleAction.SMART_REPLY) { editor.reply(tone, clipboardText) }
     }
 
-    // ──────────────────────────────────────────────────────────────────────
-    // Undo: restore previous text
-    // ──────────────────────────────────────────────────────────────────────
     private fun handleUndo() {
         Log.d(TAG, "handleUndo")
+        runAction(BubbleAction.UNDO) { editor.undo() }
+    }
+
+    private fun runAction(action: BubbleAction, block: suspend () -> EditResult) {
         scope.launch {
-            val original = lastOriginalText ?: return@launch
-            val service = EchoAccessibilityService.instance
-            if (service == null) {
-                setError("Accessibility service not active.")
-                return@launch
-            }
-            val replaced = service.replaceText(original)
-            launch(Dispatchers.Main) {
-                if (replaced) {
-                    lastOriginalText = null
-                    bubbleController.setCanUndo(false)
-                    bubbleController.resetToIdle()
-                } else {
-                    setError("Could not undo in this app.")
-                }
-            }
+            val result = withContext(Dispatchers.IO) { block() }
+            showResult(action, result)
         }
     }
 
-    // ──────────────────────────────────────────────────────────────────────
-    // Helpers
-    // ──────────────────────────────────────────────────────────────────────
-    private suspend fun setError(msg: String) {
-        kotlinx.coroutines.withContext(Dispatchers.Main) {
-            bubbleController.setError(msg)
-        }
-    }
-
-    private fun friendlyError(e: Throwable): String {
-        val msg = e.message ?: "Unknown error"
-        return when {
-            msg.contains("401") -> "Invalid API key. Check your key in Echo settings."
-            msg.contains("429") -> "Rate limit reached. Wait a moment and try again."
-            msg.contains("timeout", ignoreCase = true) ||
-            msg.contains("connect", ignoreCase = true) -> "Network error. Check your internet connection."
-            else -> msg.take(120)
+    private fun showResult(action: BubbleAction, result: EditResult) {
+        when (result) {
+            is EditResult.Applied -> bubbleController.setDone(result.preview, result.reason)
+            EditResult.NothingToChange -> bubbleController.setDone(EditMessages.ALL_GOOD, null)
+            EditResult.Undone -> bubbleController.resetToIdle()
+            is EditResult.Failed -> {
+                (result.error as? EditError.EngineFailed)?.let { Log.e(TAG, "$action failed", it.cause) }
+                EditMessages.forError(action, result.error)?.let(bubbleController::setError)
+            }
         }
     }
 

@@ -1,34 +1,36 @@
 package com.echo.core.network
 
-import com.google.gson.GsonBuilder
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 
-object OpenAiClientFactory {
+internal object OpenAiClientFactory {
 
-    fun create(apiKey: String): OpenAiApi {
-        val gson = GsonBuilder().create()
-
+    /**
+     * Builds one client for the life of the engine. The key is read on every request
+     * through [apiKeyProvider], so a key changed in settings applies to the next call.
+     */
+    fun create(config: OpenAiConfig, apiKeyProvider: () -> String?): OpenAiApi {
         val client = OkHttpClient.Builder()
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(60, TimeUnit.SECONDS)
-            .writeTimeout(60, TimeUnit.SECONDS)
+            .connectTimeout(config.connectTimeoutSeconds, TimeUnit.SECONDS)
+            .readTimeout(config.readTimeoutSeconds, TimeUnit.SECONDS)
+            .writeTimeout(config.readTimeoutSeconds, TimeUnit.SECONDS)
             .addInterceptor { chain ->
                 val request = chain.request()
                     .newBuilder()
-                    .header("Authorization", "Bearer $apiKey")
+                    .header("Authorization", "Bearer ${apiKeyProvider().orEmpty()}")
                     .header("Content-Type", "application/json")
                     .build()
                 chain.proceed(request)
             }
             .build()
 
+        val baseUrl = if (config.baseUrl.endsWith("/")) config.baseUrl else config.baseUrl + "/"
         return Retrofit.Builder()
-            .baseUrl("https://api.openai.com/")
+            .baseUrl(baseUrl)
             .client(client)
-            .addConverterFactory(GsonConverterFactory.create(gson))
+            .addConverterFactory(GsonConverterFactory.create())
             .build()
             .create(OpenAiApi::class.java)
     }

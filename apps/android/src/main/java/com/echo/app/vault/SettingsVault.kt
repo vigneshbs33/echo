@@ -4,7 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
-import com.echo.feature.onboarding.SettingsStorage
+import com.echo.core.domain.storage.SettingsStorage
 
 /**
  * Securely stores user preferences for custom tone instructions across app restarts.

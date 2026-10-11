@@ -4,6 +4,8 @@ import android.content.Context
 import android.provider.Settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import com.echo.core.domain.storage.ApiKeyStorage
+import com.echo.core.domain.storage.SettingsStorage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,24 +19,6 @@ data class OnboardingState(
     val hasOverlayPermission: Boolean = false,
     val serviceStarted: Boolean = false,
 )
-
-/**
- * Simple interface so the onboarding feature module doesn't depend on the app module.
- * Implemented by ApiKeyVault in the app module.
- */
-interface ApiKeyStorage {
-    fun save(key: String)
-    fun get(): String?
-    fun clear()
-}
-
-/**
- * Interface for reading/writing custom tone instructions.
- */
-interface SettingsStorage {
-    fun saveCustomInstruction(toneName: String, instruction: String)
-    fun getCustomInstruction(toneName: String): String
-}
 
 class OnboardingViewModel(
     private val apiKeyStorage: ApiKeyStorage,

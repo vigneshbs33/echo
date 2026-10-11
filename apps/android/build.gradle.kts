@@ -19,6 +19,12 @@ android {
             useSupportLibrary = true
         }
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Writing engine endpoint and model, from gradle.properties or -P flags. No secrets here.
+        val llmBaseUrl = providers.gradleProperty("echo.llm.baseUrl").getOrElse("https://api.openai.com/")
+        val llmModel = providers.gradleProperty("echo.llm.model").getOrElse("gpt-4o-mini")
+        buildConfigField("String", "ECHO_LLM_BASE_URL", "\"$llmBaseUrl\"")
+        buildConfigField("String", "ECHO_LLM_MODEL", "\"$llmModel\"")
     }
 
     buildTypes {
@@ -55,9 +61,9 @@ android {
 
 dependencies {
     implementation(project(":core:designsystem"))
+    implementation(project(":core:domain"))
     implementation(project(":core:model"))
     implementation(project(":core:network"))
-    implementation(project(":core:prompt"))
     implementation(project(":feature:onboarding"))
 
     implementation(libs.androidx.core.ktx)
@@ -76,7 +82,7 @@ dependencies {
     debugImplementation(platform(libs.androidx.compose.bom))
     debugImplementation(libs.androidx.compose.ui.tooling)
 
-    testImplementation("junit:junit:4.13.2")
+    testImplementation(libs.junit)
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
     androidTestImplementation(platform(libs.androidx.compose.bom))

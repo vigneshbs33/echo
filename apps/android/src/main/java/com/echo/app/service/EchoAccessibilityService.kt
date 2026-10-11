@@ -5,17 +5,18 @@ import android.os.Bundle
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import com.echo.core.domain.field.FieldSnapshot
 
 /**
  * Accessibility Service that gives Echo read and write access to the focused text field.
  *
  * It does no work on accessibility events. Text is only read when the user taps a tone
- * in the bubble, through [captureText], and written back through [replaceText] using
- * `ACTION_SET_TEXT`. Password fields and non editable nodes are ignored, and nothing is
+ * in the bubble, through [readFocusedField], and written back through [writeFocusedField]
+ * using `ACTION_SET_TEXT`. Password fields and non editable nodes are ignored, and nothing is
  * read while Echo is paused from its notification.
  *
- * The running instance is exposed through [instance] as a weak reference so the
- * foreground service can call it.
+ * The running instance is exposed through [instance] as a weak reference so
+ * [com.echo.app.field.AccessibilityTextFieldGateway] can reach it.
  */
 class EchoAccessibilityService : AccessibilityService() {
 
@@ -37,51 +38,37 @@ class EchoAccessibilityService : AccessibilityService() {
     }
 
     /**
-     * Returns the text in the currently focused editable text field.
-     * If the user has text selected, only the selected portion is returned.
-     * Returns null if no suitable text field is in focus.
+     * Returns the focused editable field with its selection, or null when no suitable
+     * field is focused (or Echo is paused).
      */
-    fun captureText(): String? {
+    fun readFocusedField(): FieldSnapshot? {
         val node = focusedEditableNode() ?: return null
-        val text = node.text?.toString() ?: return null
-        if (text.isBlank()) return null
-
-        val start = node.textSelectionStart
-        val end = node.textSelectionEnd
-
-        return if (start >= 0 && end >= 0 && start != end && start <= text.length && end <= text.length) {
-            val min = minOf(start, end)
-            val max = maxOf(start, end)
-            text.substring(min, max).takeIf { it.isNotBlank() }
-        } else {
-            text
-        }
+        return FieldSnapshot(
+            text = node.text?.toString().orEmpty(),
+            selectionStart = node.textSelectionStart,
+            selectionEnd = node.textSelectionEnd,
+        )
     }
 
     /**
-     * Replaces text in the focused editable field.
-     * If the user had a selection, only the selected range is replaced.
-     * Returns true on success.
+     * Replaces the focused field's whole text with [snapshot] and restores its selection
+     * when it has one. Returns true when the app accepted the new text.
      */
-    fun replaceText(updatedText: CharSequence): Boolean {
+    fun writeFocusedField(snapshot: FieldSnapshot): Boolean {
         val node = focusedEditableNode() ?: return false
-        val start = node.textSelectionStart
-        val end = node.textSelectionEnd
-        val original = node.text?.toString() ?: ""
-
-        val newFullText = if (start >= 0 && end >= 0 && start != end &&
-            start <= original.length && end <= original.length) {
-            val min = minOf(start, end)
-            val max = maxOf(start, end)
-            original.substring(0, min) + updatedText + original.substring(max)
-        } else {
-            updatedText
+        val textArgs = Bundle().apply {
+            putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, snapshot.text)
         }
-
-        val args = Bundle().apply {
-            putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, newFullText)
+        val written = node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, textArgs)
+        val range = snapshot.selectionRange
+        if (written && range != null) {
+            val selectionArgs = Bundle().apply {
+                putInt(AccessibilityNodeInfo.ACTION_ARGUMENT_SELECTION_START_INT, range.first)
+                putInt(AccessibilityNodeInfo.ACTION_ARGUMENT_SELECTION_END_INT, range.last + 1)
+            }
+            node.performAction(AccessibilityNodeInfo.ACTION_SET_SELECTION, selectionArgs)
         }
-        return node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+        return written
     }
 
     private fun focusedEditableNode(): AccessibilityNodeInfo? {

@@ -2,7 +2,7 @@ package com.echo.core.network
 
 import com.google.gson.annotations.SerializedName
 
-data class OpenAiRequest(
+internal data class OpenAiRequest(
     @SerializedName("model") val model: String,
     @SerializedName("messages") val messages: List<OpenAiMessage>,
     @SerializedName("max_tokens") val maxTokens: Int = 1024,
@@ -10,16 +10,16 @@ data class OpenAiRequest(
     @SerializedName("response_format") val responseFormat: ResponseFormat? = null,
 )
 
-data class ResponseFormat(
+internal data class ResponseFormat(
     @SerializedName("type") val type: String = "json_object"
 )
 
-data class OpenAiMessage(
+internal data class OpenAiMessage(
     @SerializedName("role") val role: String,
     @SerializedName("content") val content: String,
 )
 
-data class OpenAiResponse(
+internal data class OpenAiResponse(
     @SerializedName("choices") val choices: List<Choice>?,
     @SerializedName("error") val error: OpenAiError?,
 ) {
@@ -28,7 +28,7 @@ data class OpenAiResponse(
     )
 }
 
-data class OpenAiError(
+internal data class OpenAiError(
     @SerializedName("message") val message: String,
     @SerializedName("type") val type: String?,
 )

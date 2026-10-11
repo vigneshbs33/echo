@@ -63,6 +63,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.echo.core.domain.storage.StyleSamples
 
 @Composable
 internal fun OnboardingScreen(
@@ -396,7 +397,7 @@ private fun ToneSection(viewModel: OnboardingViewModel) {
             listOf("👔", "PROFESSIONAL", "Polished, formal, authoritative", "Imagine emailing your team about a project. Ask them to prioritize it and finish by Thursday, while offering your help. Write the exact message."),
             listOf("👋", "FRIENDLY", "Warm, approachable, conversational", "Imagine texting a close friend. You're 20 mins late for dinner. Apologize, tell them to order apps, and show excitement to see them. Write the exact text."),
             listOf("🔥", "EDGY", "Bold, punchy, modern energy", "Imagine a persistent salesperson is DMing you. Shut down the conversation quickly, clearly, and confidently so they don't message you again. Write your exact reply."),
-            listOf("💬", "REPLY", "Smart Reply Settings", "Imagine a coworker sent a massive 4-paragraph idea. You agree, but are too busy to write a long response right now. Write a quick reply acknowledging it and suggesting you talk tomorrow.")
+            listOf("💬", StyleSamples.REPLY_KEY, "Smart Reply Settings", "Imagine a coworker sent a massive 4-paragraph idea. You agree, but are too busy to write a long response right now. Write a quick reply acknowledging it and suggesting you talk tomorrow.")
         )
 
         tones.forEach { toneData ->

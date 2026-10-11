@@ -5,7 +5,7 @@ import android.content.SharedPreferences
 import android.util.Log
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
-import com.echo.feature.onboarding.ApiKeyStorage
+import com.echo.core.domain.storage.ApiKeyStorage
 
 /**
  * Encrypted storage for the user's OpenAI API key using Android Keystore + AES-256.

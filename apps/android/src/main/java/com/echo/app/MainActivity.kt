@@ -8,8 +8,6 @@ import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import com.echo.app.service.EchoForegroundService
-import com.echo.app.vault.ApiKeyVault
-import com.echo.app.vault.SettingsVault
 import com.echo.core.designsystem.theme.EchoTheme
 import com.echo.feature.onboarding.OnboardingRoute
 import androidx.compose.runtime.mutableStateOf
@@ -31,13 +29,9 @@ import androidx.compose.foundation.layout.Column
  */
 class MainActivity : ComponentActivity() {
 
-    private lateinit var apiKeyVault: ApiKeyVault
-    private lateinit var settingsVault: SettingsVault
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        apiKeyVault = ApiKeyVault(applicationContext)
-        settingsVault = SettingsVault(applicationContext)
+        val container = (application as EchoApplication).container
 
         setContent {
             EchoTheme {
@@ -63,8 +57,8 @@ class MainActivity : ComponentActivity() {
                 }
 
                 OnboardingRoute(
-                    apiKeyStorage = apiKeyVault,
-                    settingsStorage = settingsVault,
+                    apiKeyStorage = container.apiKeyStorage,
+                    settingsStorage = container.settingsStorage,
                     versionName = BuildConfig.VERSION_NAME,
                     onOpenAccessibilitySettings = {
                         startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))

@@ -17,6 +17,7 @@ dependencyResolutionManagement {
 rootProject.name = "Echo"
 
 include(":apps:android")
+include(":core:domain")
 include(":core:model")
 include(":core:prompt")
 include(":core:network")
