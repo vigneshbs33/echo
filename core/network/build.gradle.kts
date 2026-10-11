@@ -17,7 +17,8 @@ kotlin {
 
 dependencies {
     api(project(":core:domain"))
-    implementation(project(":core:prompt"))
+    // Part of OpenAiWritingEngine's public constructor, so callers can pass their own prompts.
+    api(project(":core:prompt"))
 
     implementation(libs.squareup.okhttp)
     implementation(libs.squareup.retrofit)
