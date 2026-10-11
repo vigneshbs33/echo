@@ -20,7 +20,7 @@ class EchoAppUiTest {
 
         // Assert that the API key card title exists
         composeTestRule.onNodeWithText("1. Your OpenAI Key \ud83d\udd11").assertExists()
-        
+
         // Assert that the launch card exists
         composeTestRule.onNodeWithText("3. Launch Echo \ud83d\ude80").assertExists()
     }

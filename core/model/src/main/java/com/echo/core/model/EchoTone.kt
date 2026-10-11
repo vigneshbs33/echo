@@ -27,6 +27,5 @@ enum class EchoTone(
     PROMOTION(
         title = "Promotion",
         summary = "Clear, engaging marketing message.",
-    )
+    ),
 }
-

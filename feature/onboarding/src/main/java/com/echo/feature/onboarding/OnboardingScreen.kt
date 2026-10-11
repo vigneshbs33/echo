@@ -9,7 +9,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,7 +22,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -34,6 +32,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -152,7 +151,7 @@ private fun HeroSection(versionName: String) {
             androidx.compose.foundation.Image(
                 painter = androidx.compose.ui.res.painterResource(id = com.echo.core.designsystem.R.drawable.ic_echo_logo),
                 contentDescription = "Echo Logo",
-                modifier = Modifier.size(40.dp)
+                modifier = Modifier.size(40.dp),
             )
         }
         Text(
@@ -166,26 +165,28 @@ private fun HeroSection(versionName: String) {
             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.60f),
             textAlign = TextAlign.Center,
         )
-        
+
         val context = LocalContext.current
         val annotatedString = androidx.compose.ui.text.buildAnnotatedString {
             append("v$versionName • Created by ")
             pushStringAnnotation(tag = "URL", annotation = "https://www.vigneshbs.xyz/")
-            withStyle(style = androidx.compose.ui.text.SpanStyle(
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Bold,
-                textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline
-            )) {
+            withStyle(
+                style = androidx.compose.ui.text.SpanStyle(
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold,
+                    textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline,
+                ),
+            ) {
                 append("Vignesh B S")
             }
             pop()
         }
-        
+
         androidx.compose.foundation.text.ClickableText(
             text = annotatedString,
             style = MaterialTheme.typography.labelSmall.copy(
                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
             ),
             modifier = Modifier.padding(top = 8.dp),
             onClick = { offset ->
@@ -194,7 +195,7 @@ private fun HeroSection(versionName: String) {
                         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(annotation.item))
                         context.startActivity(intent)
                     }
-            }
+            },
         )
     }
 }
@@ -245,7 +246,10 @@ private fun ApiKeyCard(
             )
             Spacer(Modifier.height(8.dp))
             Button(
-                onClick = { focusManager.clearFocus(); onSave() },
+                onClick = {
+                    focusManager.clearFocus()
+                    onSave()
+                },
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text("Save & Encrypt Key")
@@ -351,7 +355,7 @@ private fun LaunchCard(
                         modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                         ),
                     ) {
                         Text("Start Again")
@@ -394,10 +398,30 @@ private fun ToneSection(viewModel: OnboardingViewModel) {
 
         // Emoji, ToneName, Description, Scenario Question
         val tones = listOf(
-            listOf("👔", "PROFESSIONAL", "Polished, formal, authoritative", "Imagine emailing your team about a project. Ask them to prioritize it and finish by Thursday, while offering your help. Write the exact message."),
-            listOf("👋", "FRIENDLY", "Warm, approachable, conversational", "Imagine texting a close friend. You're 20 mins late for dinner. Apologize, tell them to order apps, and show excitement to see them. Write the exact text."),
-            listOf("🔥", "EDGY", "Bold, punchy, modern energy", "Imagine a persistent salesperson is DMing you. Shut down the conversation quickly, clearly, and confidently so they don't message you again. Write your exact reply."),
-            listOf("💬", StyleSamples.REPLY_KEY, "Smart Reply Settings", "Imagine a coworker sent a massive 4-paragraph idea. You agree, but are too busy to write a long response right now. Write a quick reply acknowledging it and suggesting you talk tomorrow.")
+            listOf(
+                "👔",
+                "PROFESSIONAL",
+                "Polished, formal, authoritative",
+                "Imagine emailing your team about a project. Ask them to prioritize it and finish by Thursday, while offering your help. Write the exact message.",
+            ),
+            listOf(
+                "👋",
+                "FRIENDLY",
+                "Warm, approachable, conversational",
+                "Imagine texting a close friend. You're 20 mins late for dinner. Apologize, tell them to order apps, and show excitement to see them. Write the exact text.",
+            ),
+            listOf(
+                "🔥",
+                "EDGY",
+                "Bold, punchy, modern energy",
+                "Imagine a persistent salesperson is DMing you. Shut down the conversation quickly, clearly, and confidently so they don't message you again. Write your exact reply.",
+            ),
+            listOf(
+                "💬",
+                StyleSamples.REPLY_KEY,
+                "Smart Reply Settings",
+                "Imagine a coworker sent a massive 4-paragraph idea. You agree, but are too busy to write a long response right now. Write a quick reply acknowledging it and suggesting you talk tomorrow.",
+            ),
         )
 
         tones.forEach { toneData ->
@@ -448,7 +472,7 @@ private fun ToneSection(viewModel: OnboardingViewModel) {
                             text = question,
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(bottom = 4.dp)
+                            modifier = Modifier.padding(bottom = 4.dp),
                         )
                         OutlinedTextField(
                             value = draft,
@@ -513,18 +537,18 @@ private fun EchoCard(
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = MaterialTheme.colorScheme.surface,
         ),
         border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.primary
+                color = MaterialTheme.colorScheme.primary,
             )
             Spacer(Modifier.height(16.dp))
             content()

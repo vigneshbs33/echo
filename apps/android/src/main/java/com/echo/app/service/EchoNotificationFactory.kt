@@ -35,8 +35,10 @@ object EchoNotificationFactory {
             action = EchoForegroundService.ACTION_TOGGLE_INCOGNITO
         }
         val incognitoPi = PendingIntent.getService(
-            context, 0, incognitoIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            context,
+            0,
+            incognitoIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 
         // Show Bubble action — tapping this re-shows the floating bubble
@@ -44,15 +46,18 @@ object EchoNotificationFactory {
             action = EchoForegroundService.ACTION_SHOW_BUBBLE
         }
         val showBubblePi = PendingIntent.getService(
-            context, 1, showBubbleIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            context,
+            1,
+            showBubbleIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 
         val incognitoLabel = if (isIncognito) "Resume" else "Pause"
-        val contentText = if (isIncognito)
+        val contentText = if (isIncognito) {
             "Paused — tap Resume to bring Echo back."
-        else
+        } else {
             context.getString(com.echo.app.R.string.notification_text)
+        }
 
         return Notification.Builder(context, CHANNEL_ID)
             .setSmallIcon(com.echo.app.R.drawable.ic_echo_logo)

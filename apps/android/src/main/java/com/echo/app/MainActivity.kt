@@ -1,5 +1,6 @@
 package com.echo.app
 
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -7,20 +8,19 @@ import android.os.Bundle
 import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import com.echo.app.service.EchoForegroundService
-import com.echo.core.designsystem.theme.EchoTheme
-import com.echo.feature.onboarding.OnboardingRoute
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import android.content.Context
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.layout.Column
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import com.echo.app.service.EchoForegroundService
+import com.echo.core.designsystem.theme.EchoTheme
+import com.echo.feature.onboarding.OnboardingRoute
 
 /**
  * The only launcher activity. Hosts the Compose onboarding and settings flow
@@ -42,9 +42,9 @@ class MainActivity : ComponentActivity() {
                     AlertDialog(
                         onDismissRequest = { },
                         confirmButton = {
-                            TextButton(onClick = { 
+                            TextButton(onClick = {
                                 prefs.edit().remove("last_crash").apply()
-                                crashLog = null 
+                                crashLog = null
                             }) { Text("Clear & Continue") }
                         },
                         title = { Text("App Crashed Previously") },
@@ -52,7 +52,7 @@ class MainActivity : ComponentActivity() {
                             Column(modifier = androidx.compose.ui.Modifier.verticalScroll(rememberScrollState())) {
                                 Text(crashLog ?: "")
                             }
-                        }
+                        },
                     )
                 }
 

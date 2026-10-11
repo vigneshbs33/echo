@@ -44,12 +44,12 @@ class EchoForegroundService : Service() {
             startForeground(
                 EchoNotificationFactory.NOTIFICATION_ID,
                 EchoNotificationFactory.build(this),
-                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE,
             )
         } else {
             startForeground(
                 EchoNotificationFactory.NOTIFICATION_ID,
-                EchoNotificationFactory.build(this)
+                EchoNotificationFactory.build(this),
             )
         }
 
@@ -74,8 +74,11 @@ class EchoForegroundService : Service() {
                 isIncognito = !isIncognito
                 val notif = EchoNotificationFactory.build(this, isIncognito)
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-                    startForeground(EchoNotificationFactory.NOTIFICATION_ID, notif,
-                        android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+                    startForeground(
+                        EchoNotificationFactory.NOTIFICATION_ID,
+                        notif,
+                        android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE,
+                    )
                 } else {
                     startForeground(EchoNotificationFactory.NOTIFICATION_ID, notif)
                 }

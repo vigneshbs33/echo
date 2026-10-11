@@ -26,7 +26,12 @@ class EchoPromptFactory {
                 appendLine(toneInstruction(tone))
                 if (tone != EchoTone.FACT_CHECK) {
                     if (tone == EchoTone.PROMOTION) {
-                        appendLine(globalConstraints.replace("Never use markdown formatting (no **, no #, no bullet points unless the original had them).", ""))
+                        appendLine(
+                            globalConstraints.replace(
+                                "Never use markdown formatting (no **, no #, no bullet points unless the original had them).",
+                                "",
+                            ),
+                        )
                     } else {
                         appendLine(globalConstraints)
                     }
@@ -34,7 +39,9 @@ class EchoPromptFactory {
                 }
                 if (contextLine.isNotBlank()) appendLine(contextLine)
                 if (customInstruction.isNotBlank()) {
-                    appendLine("Here is an example of the user's natural writing style in this tone: '$customInstruction'. Analyze their vocabulary, pacing, and sentence structure, and strictly match this vibe.")
+                    appendLine(
+                        "Here is an example of the user's natural writing style in this tone: '$customInstruction'. Analyze their vocabulary, pacing, and sentence structure, and strictly match this vibe.",
+                    )
                 }
             }.trim(),
             userPrompt = input.trim(),
@@ -58,7 +65,12 @@ class EchoPromptFactory {
             EchoTone.PROMOTION ->
                 "Write an engaging, positive marketing-focused response to the following message."
         }
-        val customLine = if (customInstruction.isNotBlank()) "\nHere is an example of the user's natural writing style: '$customInstruction'. Analyze their vocabulary, pacing, and sentence structure, and strictly match this vibe." else ""
+        val customLine = if (customInstruction.isNotBlank()) {
+            "\nHere is an example of the user's natural writing style: '$customInstruction'. " +
+                "Analyze their vocabulary, pacing, and sentence structure, and strictly match this vibe."
+        } else {
+            ""
+        }
         return PromptBundle(
             systemPrompt = """
                 You are Echo, a personal writing assistant.

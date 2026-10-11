@@ -8,23 +8,18 @@ import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
 import android.widget.FrameLayout
-import androidx.compose.foundation.Image
-import androidx.compose.ui.res.painterResource
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,8 +31,10 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -46,8 +43,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -55,10 +50,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -167,7 +162,9 @@ class EchoBubbleController(
                             params.y += dy.toInt()
                             lastX = params.x
                             lastY = params.y
-                            try { windowManager.updateViewLayout(frame, params) } catch (e: Exception) {}
+                            try {
+                                windowManager.updateViewLayout(frame, params)
+                            } catch (e: Exception) {}
                         },
                         onDragEnd = {
                             val targetX = if (params.x < screenWidth / 2) 0 else screenWidth
@@ -176,10 +173,12 @@ class EchoBubbleController(
                             animator.addUpdateListener { anim ->
                                 params.x = anim.animatedValue as Int
                                 lastX = params.x
-                                try { windowManager.updateViewLayout(frame, params) } catch (e: Exception) {}
+                                try {
+                                    windowManager.updateViewLayout(frame, params)
+                                } catch (e: Exception) {}
                             }
                             animator.start()
-                        }
+                        },
                     )
                 }
             }
@@ -198,14 +197,14 @@ class EchoBubbleController(
     fun hide() {
         lifecycleStub?.stop()
         lifecycleStub = null
-        
+
         containerView?.let { frame ->
             try {
                 // IMPORTANT: Must dispose the Compose view to detach it from the dead lifecycle,
                 // otherwise relaunching the bubble crashes silently when it tries to reuse the Compose state.
                 val composeView = (frame as? FrameLayout)?.getChildAt(0) as? ComposeView
                 composeView?.disposeComposition()
-                
+
                 windowManager.removeView(frame)
             } catch (e: Exception) {
                 android.util.Log.e("EchoBubble", "Failed to remove bubble view", e)
@@ -214,18 +213,30 @@ class EchoBubbleController(
         containerView = null
     }
 
-    fun setLoading() { uiState.value = BubbleUiState.Loading }
-    fun setDone(preview: String, reason: String? = null) { uiState.value = BubbleUiState.Done(preview, reason) }
-    fun setError(msg: String) { uiState.value = BubbleUiState.Error(msg) }
-    fun resetToIdle() { uiState.value = BubbleUiState.Idle }
-    fun setCanUndo(canUndo: Boolean) { canUndoState.value = canUndo }
+    fun setDone(preview: String, reason: String? = null) {
+        uiState.value = BubbleUiState.Done(preview, reason)
+    }
+
+    fun setError(msg: String) {
+        uiState.value = BubbleUiState.Error(msg)
+    }
+
+    fun resetToIdle() {
+        uiState.value = BubbleUiState.Idle
+    }
+
+    fun setCanUndo(canUndo: Boolean) {
+        canUndoState.value = canUndo
+    }
 
     private fun bubbleLayoutParams() = WindowManager.LayoutParams(
         WindowManager.LayoutParams.WRAP_CONTENT,
         WindowManager.LayoutParams.WRAP_CONTENT,
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-        else WindowManager.LayoutParams.TYPE_PHONE,
+        } else {
+            WindowManager.LayoutParams.TYPE_PHONE
+        },
         WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
             WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
         PixelFormat.TRANSLUCENT,
@@ -263,18 +274,18 @@ private fun EchoBubble(
         when (state) {
             is BubbleUiState.Idle -> IdleBubble(onTap = onBubbleTap, onDrag = onDrag, onDragEnd = onDragEnd)
             is BubbleUiState.Menu -> ToneMenu(
-                onToneSelected = onToneSelected, 
-                onReplyFlowSelected = onReplyFlowSelected, 
+                onToneSelected = onToneSelected,
+                onReplyFlowSelected = onReplyFlowSelected,
                 canUndo = canUndo,
                 onUndoSelected = onUndoSelected,
-                onDismiss = onDismiss
+                onDismiss = onDismiss,
             )
             is BubbleUiState.Loading -> LoadingBubble(onDismiss = onDismiss)
             is BubbleUiState.Done -> DoneBubble(preview = state.preview, reason = state.reason, onDismiss = onDismiss)
             is BubbleUiState.Error -> ErrorBubble(message = state.message, onDismiss = onDismiss)
             is BubbleUiState.SmartReplyMenu -> SmartReplyMenuBubble(
                 onReplySelected = onReplySelected,
-                onDismiss = onDismiss
+                onDismiss = onDismiss,
             )
         }
     }
@@ -297,7 +308,7 @@ private fun IdleBubble(onTap: () -> Unit, onDrag: (Float, Float) -> Unit, onDrag
                     onDrag = { change, dragAmount ->
                         change.consume()
                         onDrag(dragAmount.x, dragAmount.y)
-                    }
+                    },
                 )
             },
         contentAlignment = Alignment.Center,
@@ -305,7 +316,7 @@ private fun IdleBubble(onTap: () -> Unit, onDrag: (Float, Float) -> Unit, onDrag
         Image(
             painter = painterResource(id = com.echo.core.designsystem.R.drawable.ic_echo_logo),
             contentDescription = "Echo Logo",
-            modifier = Modifier.size(32.dp)
+            modifier = Modifier.size(32.dp),
         )
     }
 }
@@ -329,11 +340,11 @@ private fun LoadingBubble(onDismiss: () -> Unit) {
 
 @Composable
 private fun ToneMenu(
-    onToneSelected: (EchoTone) -> Unit, 
-    onReplyFlowSelected: () -> Unit, 
+    onToneSelected: (EchoTone) -> Unit,
+    onReplyFlowSelected: () -> Unit,
     canUndo: Boolean,
     onUndoSelected: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     Card(
         shape = RoundedCornerShape(16.dp),
@@ -351,15 +362,18 @@ private fun ToneMenu(
             if (canUndo) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 2.dp),
-                    horizontalArrangement = Arrangement.End
+                    horizontalArrangement = Arrangement.End,
                 ) {
                     Box(
                         modifier = Modifier
                             .size(36.dp)
                             .clip(CircleShape)
                             .background(Color.White.copy(alpha = 0.15f))
-                            .clickable { onUndoSelected(); onDismiss() },
-                        contentAlignment = Alignment.Center
+                            .clickable {
+                                onUndoSelected()
+                                onDismiss()
+                            },
+                        contentAlignment = Alignment.Center,
                     ) {
                         Text("↩️", fontSize = 16.sp)
                     }
@@ -367,20 +381,45 @@ private fun ToneMenu(
             }
             Text("Pick a tone", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.6f))
             Spacer(Modifier.height(4.dp))
-            
+
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                ToneButton(emoji = "👔", label = "Pro", onClick = { onToneSelected(EchoTone.PROFESSIONAL) }, modifier = Modifier.weight(1f))
-                ToneButton(emoji = "👋", label = "Friendly", onClick = { onToneSelected(EchoTone.FRIENDLY) }, modifier = Modifier.weight(1f))
+                ToneButton(
+                    emoji = "👔",
+                    label = "Pro",
+                    onClick = { onToneSelected(EchoTone.PROFESSIONAL) },
+                    modifier = Modifier.weight(1f),
+                )
+                ToneButton(
+                    emoji = "👋",
+                    label = "Friendly",
+                    onClick = { onToneSelected(EchoTone.FRIENDLY) },
+                    modifier = Modifier.weight(1f),
+                )
             }
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                ToneButton(emoji = "🔥", label = "Edgy", onClick = { onToneSelected(EchoTone.EDGY) }, modifier = Modifier.weight(1f))
-                ToneButton(emoji = "📣", label = "Promo", onClick = { onToneSelected(EchoTone.PROMOTION) }, modifier = Modifier.weight(1f))
+                ToneButton(
+                    emoji = "🔥",
+                    label = "Edgy",
+                    onClick = { onToneSelected(EchoTone.EDGY) },
+                    modifier = Modifier.weight(1f),
+                )
+                ToneButton(
+                    emoji = "📣",
+                    label = "Promo",
+                    onClick = { onToneSelected(EchoTone.PROMOTION) },
+                    modifier = Modifier.weight(1f),
+                )
             }
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                ToneButton(emoji = "✅", label = "Fact", onClick = { onToneSelected(EchoTone.FACT_CHECK) }, modifier = Modifier.weight(1f))
+                ToneButton(
+                    emoji = "✅",
+                    label = "Fact",
+                    onClick = { onToneSelected(EchoTone.FACT_CHECK) },
+                    modifier = Modifier.weight(1f),
+                )
                 Spacer(modifier = Modifier.weight(1f))
             }
-            
+
             Spacer(Modifier.height(4.dp))
             Row(
                 modifier = Modifier
@@ -441,9 +480,9 @@ private fun DoneBubble(preview: String, reason: String? = null, onDismiss: () ->
                     Box(
                         modifier = Modifier
                             .clip(CircleShape)
-                            .background(Color.White.copy(alpha=0.1f))
+                            .background(Color.White.copy(alpha = 0.1f))
                             .clickable { showReason = !showReason }
-                            .padding(4.dp)
+                            .padding(4.dp),
                     ) {
                         Text("❓", fontSize = 12.sp)
                     }
@@ -455,7 +494,7 @@ private fun DoneBubble(preview: String, reason: String? = null, onDismiss: () ->
                     text = "Reason: $reason",
                     style = MaterialTheme.typography.labelSmall,
                     color = Color(0xFFEAB308),
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 )
             }
             if (preview.isNotBlank()) {
@@ -509,7 +548,7 @@ private fun ErrorBubble(message: String, onDismiss: () -> Unit) {
 @Composable
 private fun SmartReplyMenuBubble(
     onReplySelected: (EchoTone) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     Card(
         shape = RoundedCornerShape(16.dp),
@@ -527,11 +566,26 @@ private fun SmartReplyMenuBubble(
             Text("Auto-Reply options", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.6f))
             Spacer(Modifier.height(4.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                ToneButton(emoji = "👍", label = "Accept", onClick = { onReplySelected(EchoTone.PROFESSIONAL) }, modifier = Modifier.weight(1f))
+                ToneButton(
+                    emoji = "👍",
+                    label = "Accept",
+                    onClick = { onReplySelected(EchoTone.PROFESSIONAL) },
+                    modifier = Modifier.weight(1f),
+                )
             }
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                ToneButton(emoji = "👎", label = "Decline", onClick = { onReplySelected(EchoTone.EDGY) }, modifier = Modifier.weight(1f))
-                ToneButton(emoji = "🤔", label = "Clarify", onClick = { onReplySelected(EchoTone.FRIENDLY) }, modifier = Modifier.weight(1f))
+                ToneButton(
+                    emoji = "👎",
+                    label = "Decline",
+                    onClick = { onReplySelected(EchoTone.EDGY) },
+                    modifier = Modifier.weight(1f),
+                )
+                ToneButton(
+                    emoji = "🤔",
+                    label = "Clarify",
+                    onClick = { onReplySelected(EchoTone.FRIENDLY) },
+                    modifier = Modifier.weight(1f),
+                )
             }
             Spacer(Modifier.height(4.dp))
             Text(
@@ -551,12 +605,12 @@ private class LifecycleOwnerStub : LifecycleOwner, ViewModelStoreOwner {
     private val registry = LifecycleRegistry(this)
     override val lifecycle: Lifecycle get() = registry
     override val viewModelStore = ViewModelStore()
-    fun start() { 
+    fun start() {
         registry.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
         registry.handleLifecycleEvent(Lifecycle.Event.ON_START)
         registry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
     }
-    fun stop() { 
+    fun stop() {
         registry.handleLifecycleEvent(Lifecycle.Event.ON_PAUSE)
         registry.handleLifecycleEvent(Lifecycle.Event.ON_STOP)
         registry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
@@ -569,7 +623,10 @@ private class ViewModelStoreOwnerStub : ViewModelStoreOwner {
 
 private class SavedStateRegistryOwnerStub : SavedStateRegistryOwner {
     private val controller = SavedStateRegistryController.create(this)
-    init { controller.performAttach(); controller.performRestore(null) }
+    init {
+        controller.performAttach()
+        controller.performRestore(null)
+    }
     override val lifecycle: Lifecycle get() = LifecycleRegistry(this)
     override val savedStateRegistry: SavedStateRegistry get() = controller.savedStateRegistry
 }

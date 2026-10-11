@@ -32,7 +32,8 @@ object EditMessages {
         return when {
             status == 401 || message.contains("401") -> "Invalid API key. Check your key in Echo settings."
             status == 429 || message.contains("429") -> "Rate limit reached. Wait a moment and try again."
-            cause is IOException || cause.cause is IOException ||
+            cause is IOException ||
+                cause.cause is IOException ||
                 message.contains("timeout", ignoreCase = true) ||
                 message.contains("connect", ignoreCase = true) -> "Network error. Check your internet connection."
             message.isBlank() -> "Unknown error"

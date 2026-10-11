@@ -11,7 +11,7 @@ internal data class OpenAiRequest(
 )
 
 internal data class ResponseFormat(
-    @SerializedName("type") val type: String = "json_object"
+    @SerializedName("type") val type: String = "json_object",
 )
 
 internal data class OpenAiMessage(

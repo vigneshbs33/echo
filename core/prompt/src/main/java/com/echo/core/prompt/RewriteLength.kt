@@ -7,4 +7,3 @@ enum class RewriteLength(
     SHORTER("Make the rewritten text shorter than the original while preserving intent."),
     LONGER("Expand the rewritten text slightly while preserving intent."),
 }
-
